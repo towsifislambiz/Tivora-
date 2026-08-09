@@ -31,24 +31,32 @@ export function CallProvider({ children }) {
   const timerRef = useRef(null);
   const callingTimeoutRef = useRef(null);
 
+  const incomingCallRef = useRef(null);
+
   activeCallRef.current = activeCall;
+  incomingCallRef.current = incomingCall;
   callStateRef.current = callState;
 
   // Unsubscribe refs
   const unsubCallDocRef = useRef(null);
   const unsubIceCandidatesRef = useRef(null);
 
-  // 1. Listen for global incoming calls across the entire app
+  // 1. Listen for global incoming calls across the entire app (WhatsApp Multi-Device Ringing)
   useEffect(() => {
     if (!currentUser?.uid) return;
 
     const unsubscribe = subscribeToIncomingCalls(currentUser.uid, async (callData) => {
-      // Security & Eligibility Check: Are they friends and not blocked?
+      // Security & Eligibility Check: Are they friends?
       const friendConfirmed = await areFriends(currentUser.uid, callData.callerId);
-      if (!friendConfirmed) return; // Ignore call if not friends
+      if (!friendConfirmed) return;
 
-      // Busy Protection: If already on another call, reject with 'busy'
-      if (callStateRef.current !== 'idle' || activeCallRef.current) {
+      // 1. If this exact call ID is already active or ringing on this device, ignore duplicate snapshot
+      if (activeCallRef.current?.callId === callData.callId || incomingCallRef.current?.callId === callData.callId) {
+        return;
+      }
+
+      // 2. True Busy Protection: Only mark busy if user is currently engaged in a DIFFERENT active call
+      if (activeCallRef.current && activeCallRef.current.callId !== callData.callId && (callStateRef.current === 'connected' || callStateRef.current === 'calling')) {
         await updateCallStatus(callData.callId, 'busy');
         await recordCallHistory({ ...callData, status: 'busy' });
         return;
@@ -60,6 +68,31 @@ export function CallProvider({ children }) {
 
     return () => unsubscribe();
   }, [currentUser?.uid]);
+
+  // 1b. Real-Time Incoming Call Document Status Subscription (WhatsApp Sync: Auto-dismiss when answered on another device, cancelled, or declined)
+  useEffect(() => {
+    if (!incomingCall?.callId || callState !== 'ringing') return;
+
+    const callId = incomingCall.callId;
+    const unsub = subscribeToCallDoc(callId, (updatedCall) => {
+      if (!updatedCall) {
+        setIncomingCall(null);
+        setCallState('idle');
+        return;
+      }
+
+      // If call status updated away from 'calling' (e.g. answered on another device, cancelled by caller, declined, timed out, or ended)
+      if (['connecting', 'connected', 'rejected', 'cancelled', 'missed', 'ended', 'busy'].includes(updatedCall.status)) {
+        // If call was accepted on another device or ended/cancelled, clear incoming popup silently
+        setIncomingCall(null);
+        if (callStateRef.current === 'ringing') {
+          setCallState('idle');
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [incomingCall?.callId, callState]);
 
   // Call Duration Timer
   useEffect(() => {

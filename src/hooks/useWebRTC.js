@@ -7,7 +7,8 @@ const ICE_SERVERS = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' }
-  ]
+  ],
+  iceCandidatePoolSize: 10
 };
 
 export function useWebRTC() {
@@ -44,7 +45,7 @@ export function useWebRTC() {
           remoteStreamRef.current = new MediaStream();
         }
         remoteStreamRef.current.addTrack(event.track);
-        setRemoteStream(remoteStreamRef.current);
+        setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
       }
     };
 
@@ -64,7 +65,7 @@ export function useWebRTC() {
     return pc;
   }, []);
 
-  // Request camera / microphone media
+  // Request camera / microphone media with Zero-Latency High-Fidelity Constraints
   const initLocalMedia = useCallback(async (callType, customFacing = 'user') => {
     setPermissionError(null);
 
@@ -75,7 +76,14 @@ export function useWebRTC() {
     }
 
     const constraints = {
-      audio: true,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        latency: 0,
+        sampleRate: 48000,
+        channelCount: 1
+      },
       video: callType === 'video' ? { facingMode: customFacing } : false
     };
 

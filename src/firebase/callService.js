@@ -199,14 +199,15 @@ export async function updateCallStatus(callId, status, extraData = {}) {
 }
 
 /**
- * Record a call history message in conversation
+ * Record a call history message in conversation (Deduplicated via deterministic Call Log ID)
  * @param {Object} callData 
  */
 export async function recordCallHistory(callData) {
-  if (!callData?.conversationId || !callData?.callerId || !callData?.receiverId) return;
+  if (!callData?.conversationId || !callData?.callerId || !callData?.receiverId || !callData?.callId) return;
 
   try {
-    const messagesRef = collection(db, "conversations", callData.conversationId, "messages");
+    const messageDocId = `call_log_${callData.callId}`;
+    const messageRef = doc(db, "conversations", callData.conversationId, "messages", messageDocId);
     const callTypeStr = callData.type === 'video' ? 'Video Call' : 'Voice Call';
     let durationText = '';
 
@@ -231,7 +232,8 @@ export async function recordCallHistory(callData) {
       statusLabel = `${callTypeStr} (${callData.status})`;
     }
 
-    await addDoc(messagesRef, {
+    await setDoc(messageRef, {
+      id: messageDocId,
       type: 'call',
       callId: callData.callId,
       callType: callData.type,
@@ -241,8 +243,9 @@ export async function recordCallHistory(callData) {
       receiverId: callData.receiverId,
       text: statusLabel,
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
       readBy: [callData.callerId]
-    });
+    }, { merge: true });
   } catch (err) {
     console.warn("recordCallHistory error:", err);
   }

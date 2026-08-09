@@ -1,16 +1,27 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Mic, MicOff, Volume2, PhoneOff, Sparkles, ShieldCheck } from 'lucide-react';
 import UserAvatar from '../common/UserAvatar';
 import { useCall } from '../../context/CallContext';
 
 export default function VoiceCallScreen() {
   const { activeCall, callState, callDuration, webRTC, endActiveCall } = useCall();
+  const remoteAudioRef = useRef(null);
+
+  const { isMuted, toggleMute, remoteStream } = webRTC;
+
+  // Real-time zero-latency remote audio playback binding
+  useEffect(() => {
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch((err) => {
+        console.warn("Remote audio autoplay notice:", err);
+      });
+    }
+  }, [remoteStream]);
 
   if (!activeCall || activeCall.type !== 'voice' || (callState !== 'connected' && callState !== 'connecting' && callState !== 'reconnecting')) {
     return null;
   }
-
-  const { isMuted, toggleMute } = webRTC;
 
   const partnerName = activeCall.receiverDisplayName || activeCall.callerDisplayName || 'Tivora User';
   const partnerUsername = activeCall.receiverUsername || activeCall.callerUsername || 'user';
@@ -95,6 +106,8 @@ export default function VoiceCallScreen() {
             <span className="text-[0.7rem] font-semibold text-brand-mutedText">Audio</span>
           </div>
         </div>
+        {/* Hidden Zero-Latency Remote Voice Audio Element */}
+        <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
       </div>
     </div>
   );

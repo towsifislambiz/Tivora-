@@ -66,14 +66,13 @@ export default function VideoCallScreen() {
     >
       {/* ── Main Remote Video View ── */}
       <div className="absolute inset-0 w-full h-full bg-slate-900 flex items-center justify-center">
-        {remoteStream ? (
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full object-cover"
-          />
-        ) : (
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          className={`w-full h-full object-cover ${!remoteStream ? 'hidden' : ''}`}
+        />
+        {!remoteStream && (
           <div className="flex flex-col items-center justify-center text-white/70 space-y-3">
             <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center animate-pulse">
               <VideoIcon className="w-8 h-8 text-brand-purple" />
