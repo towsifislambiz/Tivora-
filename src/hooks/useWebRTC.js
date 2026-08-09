@@ -30,6 +30,13 @@ export function useWebRTC() {
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
+    // CRITICAL WEBRTC AUDIO FIX: Attach local media tracks if stream already initialized
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => {
+        pc.addTrack(track, localStreamRef.current);
+      });
+    }
+
     pc.onicecandidate = (event) => {
       if (event.candidate && onIceCandidate) {
         onIceCandidate(event.candidate);
@@ -94,8 +101,12 @@ export function useWebRTC() {
 
       // Add tracks to PeerConnection if already created
       if (pcRef.current) {
+        const senders = pcRef.current.getSenders();
         stream.getTracks().forEach((track) => {
-          pcRef.current.addTrack(track, stream);
+          const hasTrack = senders.some((s) => s.track && (s.track.id === track.id || s.track.kind === track.kind));
+          if (!hasTrack) {
+            pcRef.current.addTrack(track, stream);
+          }
         });
       }
 

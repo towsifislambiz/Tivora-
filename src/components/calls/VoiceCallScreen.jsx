@@ -9,13 +9,30 @@ export default function VoiceCallScreen() {
 
   const { isMuted, toggleMute, remoteStream } = webRTC;
 
-  // Real-time zero-latency remote audio playback binding
+  // Real-time zero-latency remote audio playback binding with autoplay unlock
   useEffect(() => {
-    if (remoteAudioRef.current && remoteStream) {
-      remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch((err) => {
-        console.warn("Remote audio autoplay notice:", err);
-      });
+    const audioEl = remoteAudioRef.current;
+    if (audioEl && remoteStream) {
+      audioEl.srcObject = remoteStream;
+      audioEl.volume = 1.0;
+      audioEl.muted = false;
+
+      const playAudio = async () => {
+        try {
+          await audioEl.play();
+        } catch (err) {
+          console.warn("Autoplay notice, attaching gesture unlock listener:", err);
+          const unlock = () => {
+            if (audioEl) audioEl.play().catch(() => {});
+            document.removeEventListener('click', unlock);
+            document.removeEventListener('touchstart', unlock);
+          };
+          document.addEventListener('click', unlock);
+          document.addEventListener('touchstart', unlock);
+        }
+      };
+
+      playAudio();
     }
   }, [remoteStream]);
 
