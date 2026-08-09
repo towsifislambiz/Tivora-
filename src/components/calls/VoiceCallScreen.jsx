@@ -9,31 +9,73 @@ export default function VoiceCallScreen() {
 
   const { isMuted, toggleMute, remoteStream } = webRTC;
 
-  // Real-time zero-latency remote audio playback binding with autoplay unlock
+  // Anti-echo & noise elimination pipeline with AudioContext
   useEffect(() => {
     const audioEl = remoteAudioRef.current;
-    if (audioEl && remoteStream) {
-      audioEl.srcObject = remoteStream;
-      audioEl.volume = 1.0;
-      audioEl.muted = false;
+    if (!audioEl || !remoteStream) return;
 
-      const playAudio = async () => {
+    let audioCtx = null;
+    let sourceNode = null;
+
+    const setupAudio = async () => {
+      try {
+        // Build AudioContext noise processing pipeline
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        if (audioCtx.state === 'suspended') {
+          await audioCtx.resume();
+        }
+
+        sourceNode = audioCtx.createMediaStreamSource(remoteStream);
+
+        // DynamicsCompressor reduces sudden loud peaks (echo bursts)
+        const compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-24, audioCtx.currentTime);
+        compressor.knee.setValueAtTime(30, audioCtx.currentTime);
+        compressor.ratio.setValueAtTime(12, audioCtx.currentTime);
+        compressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
+        compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+
+        // Gain node — full volume output
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+        // Chain: source → compressor → gain → destination (speakers)
+        sourceNode.connect(compressor);
+        compressor.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        // Keep audio element muted — AudioContext handles output
+        audioEl.srcObject = remoteStream;
+        audioEl.muted = true;
+        audioEl.volume = 0;
+
+      } catch (err) {
+        // Fallback: direct audio element playback
+        console.warn('AudioContext not available, using direct playback:', err);
+        audioEl.srcObject = remoteStream;
+        audioEl.volume = 1.0;
+        audioEl.muted = false;
         try {
           await audioEl.play();
-        } catch (err) {
-          console.warn("Autoplay notice, attaching gesture unlock listener:", err);
+        } catch (playErr) {
           const unlock = () => {
-            if (audioEl) audioEl.play().catch(() => {});
+            audioEl.play().catch(() => {});
             document.removeEventListener('click', unlock);
             document.removeEventListener('touchstart', unlock);
           };
           document.addEventListener('click', unlock);
           document.addEventListener('touchstart', unlock);
         }
-      };
+      }
+    };
 
-      playAudio();
-    }
+    setupAudio();
+
+    return () => {
+      if (sourceNode) sourceNode.disconnect();
+      if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+    };
   }, [remoteStream]);
 
   if (!activeCall || activeCall.type !== 'voice' || (callState !== 'connected' && callState !== 'connecting' && callState !== 'reconnecting')) {

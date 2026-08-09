@@ -7,8 +7,7 @@ import {
   RefreshCw, 
   Maximize, 
   Minimize, 
-  PhoneOff,
-  ShieldCheck
+  PhoneOff
 } from 'lucide-react';
 import { useCall } from '../../context/CallContext';
 
@@ -19,22 +18,94 @@ export default function VideoCallScreen() {
   const containerRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const sourceNodeRef = useRef(null);
 
   const { localStream, remoteStream, isMuted, isVideoOff, toggleMute, toggleVideo, switchCamera } = webRTC;
 
-  // Bind Local Video Stream
+  // Bind Local Video Stream (always muted — no echo from own mic)
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.muted = true;
+      localVideoRef.current.play().catch(() => {});
     }
   }, [localStream]);
 
-  // Bind Remote Video Stream
+  // Bind Remote Video + AudioContext Anti-Echo Pipeline
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
+    if (!remoteStream) return;
+
+    // Bind video element (muted — AudioContext handles audio output)
+    if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.muted = true;
+      remoteVideoRef.current.play().catch(() => {});
     }
+
+    // Build AudioContext anti-echo processing pipeline for remote audio
+    const setupAudio = async () => {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+        const sourceNode = audioCtx.createMediaStreamSource(remoteStream);
+
+        // DynamicsCompressor — kills echo bursts & sudden loudness spikes
+        const compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-24, audioCtx.currentTime);
+        compressor.knee.setValueAtTime(30, audioCtx.currentTime);
+        compressor.ratio.setValueAtTime(12, audioCtx.currentTime);
+        compressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
+        compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+
+        // Gain — full volume
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+        // Chain: remote stream → compressor → gain → speakers
+        sourceNode.connect(compressor);
+        compressor.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        audioCtxRef.current = audioCtx;
+        sourceNodeRef.current = sourceNode;
+      } catch (err) {
+        // Fallback: let video element handle audio directly
+        console.warn('VideoCall AudioContext fallback:', err);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.muted = false;
+          remoteVideoRef.current.volume = 1.0;
+          const tryPlay = () => {
+            remoteVideoRef.current?.play().catch(() => {});
+            document.removeEventListener('click', tryPlay);
+            document.removeEventListener('touchstart', tryPlay);
+          };
+          remoteVideoRef.current.play().catch(() => {
+            document.addEventListener('click', tryPlay);
+            document.addEventListener('touchstart', tryPlay);
+          });
+        }
+      }
+    };
+
+    setupAudio();
+
+    return () => {
+      if (sourceNodeRef.current) { sourceNodeRef.current.disconnect(); sourceNodeRef.current = null; }
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close();
+        audioCtxRef.current = null;
+      }
+    };
   }, [remoteStream]);
+
+  // Sync fullscreen state with browser fullscreen API
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   if (!activeCall || activeCall.type !== 'video' || (callState !== 'connected' && callState !== 'connecting' && callState !== 'reconnecting')) {
     return null;
@@ -52,10 +123,8 @@ export default function VideoCallScreen() {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
       containerRef.current.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
     }
   };
 
@@ -66,10 +135,12 @@ export default function VideoCallScreen() {
     >
       {/* ── Main Remote Video View ── */}
       <div className="absolute inset-0 w-full h-full bg-slate-900 flex items-center justify-center">
+        {/* Always keep video in DOM so ref binding is stable */}
         <video
           ref={remoteVideoRef}
           autoPlay
           playsInline
+          muted
           className={`w-full h-full object-cover ${!remoteStream ? 'hidden' : ''}`}
         />
         {!remoteStream && (
@@ -77,7 +148,7 @@ export default function VideoCallScreen() {
             <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center animate-pulse">
               <VideoIcon className="w-8 h-8 text-brand-purple" />
             </div>
-            <p className="text-sm font-semibold">Waiting for video stream...</p>
+            <p className="text-sm font-semibold">Connecting video...</p>
           </div>
         )}
       </div>
@@ -106,7 +177,7 @@ export default function VideoCallScreen() {
         </div>
       </div>
 
-      {/* ── Floating Local Video Preview (Draggable/Mini Window) ── */}
+      {/* ── Floating Local Video Preview ── */}
       <div className="absolute top-20 right-4 z-20 w-28 sm:w-36 h-40 sm:h-48 rounded-2xl overflow-hidden border-2 border-white/40 shadow-2xl bg-black">
         {isVideoOff ? (
           <div className="w-full h-full bg-slate-800 flex flex-col items-center justify-center text-white/50 text-xs">
@@ -127,7 +198,7 @@ export default function VideoCallScreen() {
       {/* ── Floating Bottom Toolbar Overlay ── */}
       <div className="relative z-10 w-full pb-8 pt-4 px-4 flex justify-center bg-gradient-to-t from-black/80 via-black/40 to-transparent pb-safe">
         <div className="flex items-center gap-4 bg-white/20 backdrop-blur-2xl px-6 py-3.5 rounded-full border border-white/30 shadow-2xl">
-          {/* Mute Microphone (56x56px) */}
+          {/* Mute Microphone */}
           <button
             onClick={toggleMute}
             className={`w-14 h-14 rounded-full flex items-center justify-center transition-all touch-manipulation ${
@@ -138,7 +209,7 @@ export default function VideoCallScreen() {
             {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
           </button>
 
-          {/* Camera On / Off (56x56px) */}
+          {/* Camera On / Off */}
           <button
             onClick={toggleVideo}
             className={`w-14 h-14 rounded-full flex items-center justify-center transition-all touch-manipulation ${
@@ -149,7 +220,7 @@ export default function VideoCallScreen() {
             {isVideoOff ? <VideoOff className="w-6 h-6" /> : <VideoIcon className="w-6 h-6" />}
           </button>
 
-          {/* Switch Camera Mobile (56x56px) */}
+          {/* Switch Camera Mobile */}
           <button
             onClick={() => switchCamera('video')}
             className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-all touch-manipulation"
@@ -158,7 +229,7 @@ export default function VideoCallScreen() {
             <RefreshCw className="w-6 h-6" />
           </button>
 
-          {/* End Call Button (56x56px) */}
+          {/* End Call Button */}
           <button
             onClick={endActiveCall}
             className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-soft-lg hover:scale-110 active:scale-95 transition-all touch-manipulation"

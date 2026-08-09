@@ -100,12 +100,25 @@ export function useWebRTC() {
 
     const constraints = {
       audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        latency: 0,
-        sampleRate: 48000,
-        channelCount: 1
+        // Core echo & noise controls (W3C standard)
+        echoCancellation: { ideal: true },
+        noiseSuppression: { ideal: true },
+        autoGainControl: { ideal: true },
+        // Zero latency pipeline
+        latency: { ideal: 0, max: 0.01 },
+        sampleRate: { ideal: 48000 },
+        channelCount: { ideal: 1, exact: 1 },
+        // Chrome/Chromium experimental echo cancellation flags
+        googEchoCancellation: true,
+        googEchoCancellation2: true,
+        googDAEchoCancellation: true,
+        googNoiseSuppression: true,
+        googNoiseSuppression2: true,
+        googHighpassFilter: true,
+        googAudioMirroring: false,
+        googAutoGainControl: true,
+        googAutoGainControl2: true,
+        googTypingNoiseDetection: true,
       },
       video: callType === 'video' ? { facingMode: customFacing } : false
     };
