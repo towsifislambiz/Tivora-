@@ -9,13 +9,14 @@ export default function VoiceCallScreen() {
 
   const { isMuted, toggleMute, remoteStream } = webRTC;
 
-  // Anti-echo & noise elimination pipeline with AudioContext
+  // Anti-echo & Noise Gate (Silence Hiss Mute) pipeline with AudioContext
   useEffect(() => {
     const audioEl = remoteAudioRef.current;
     if (!audioEl || !remoteStream) return;
 
     let audioCtx = null;
     let sourceNode = null;
+    let animationFrameId = null;
 
     const setupAudio = async () => {
       try {
@@ -36,16 +37,39 @@ export default function VoiceCallScreen() {
         compressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
         compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
 
-        // Gain node — full volume output
+        // AnalyserNode for Real-Time Noise Gate Threshold Detection
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        const pcmData = new Float32Array(analyser.fftSize);
+
+        // Gain node for Noise Gate mute/unmute output
         const gainNode = audioCtx.createGain();
         gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
-        // Chain: source → compressor → gain → destination (speakers)
+        // Chain: source → compressor → analyser → gain → destination (speakers)
         sourceNode.connect(compressor);
-        compressor.connect(gainNode);
+        compressor.connect(analyser);
+        analyser.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
-        // Keep audio element muted — AudioContext handles output
+        // Noise Gate Loop: mutes audio during silence/ambient hiss, unmutes during human speech
+        const NOISE_THRESHOLD = 0.012; // RMS Threshold for voice vs background room hiss
+        const checkNoiseGate = () => {
+          analyser.getFloatTimeDomainData(pcmData);
+          let sumSquares = 0;
+          for (let i = 0; i < pcmData.length; i++) {
+            sumSquares += pcmData[i] * pcmData[i];
+          }
+          const rms = Math.sqrt(sumSquares / pcmData.length);
+          const targetGain = rms > NOISE_THRESHOLD ? 1.0 : 0.0;
+          gainNode.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.05);
+
+          animationFrameId = requestAnimationFrame(checkNoiseGate);
+        };
+
+        checkNoiseGate();
+
+        // Keep HTML5 audio element muted — AudioContext handles output
         audioEl.srcObject = remoteStream;
         audioEl.muted = true;
         audioEl.volume = 0;
@@ -73,6 +97,7 @@ export default function VoiceCallScreen() {
     setupAudio();
 
     return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
       if (sourceNode) sourceNode.disconnect();
       if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
     };

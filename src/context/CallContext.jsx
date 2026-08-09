@@ -48,6 +48,19 @@ export function CallProvider({ children }) {
       const friendConfirmed = await areFriends(currentUser.uid, callData.callerId);
       if (!friendConfirmed) return;
 
+      // STALE CALL PROTECTION (Messenger/WhatsApp Style):
+      // If call was created > 35 seconds ago, it is an expired missed call!
+      const nowMs = Date.now();
+      const createdMs = callData.createdAt?.toMillis ? callData.createdAt.toMillis() : (callData.createdAt || nowMs);
+      const ageSeconds = Math.max(0, (nowMs - createdMs) / 1000);
+
+      if (ageSeconds > 35) {
+        // Mark stale call as missed in Firestore and record single call history log
+        await updateCallStatus(callData.callId, 'missed');
+        await recordCallHistory({ ...callData, status: 'missed' });
+        return; // DO NOT show popup for expired calls
+      }
+
       // Ignore if already ringing or active for this exact call
       if (
         activeCallRef.current?.callId === callData.callId ||
@@ -72,7 +85,7 @@ export function CallProvider({ children }) {
     return () => unsubscribe();
   }, [currentUser?.uid]);
 
-  // ─── 1b. Auto-dismiss when answered/cancelled on another device ───────────
+  // ─── 1b. Auto-dismiss when answered/cancelled on another device (WhatsApp Multi-Device Sync) ───────────
   useEffect(() => {
     if (!incomingCall?.callId || callState !== 'ringing') return;
 
@@ -83,8 +96,8 @@ export function CallProvider({ children }) {
         setCallState('idle');
         return;
       }
-      // Only dismiss for terminal statuses — NOT 'connecting' (receiver sets that themselves)
-      if (['rejected', 'cancelled', 'missed', 'ended', 'busy'].includes(updatedCall.status)) {
+      // If call status updated away from 'calling' (answered on another device as 'connecting'/'connected', or rejected/cancelled/missed/ended/busy)
+      if (['connecting', 'connected', 'rejected', 'cancelled', 'missed', 'ended', 'busy'].includes(updatedCall.status)) {
         setIncomingCall(null);
         if (callStateRef.current === 'ringing') setCallState('idle');
       }

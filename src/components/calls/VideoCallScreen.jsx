@@ -21,7 +21,7 @@ export default function VideoCallScreen() {
   const audioCtxRef = useRef(null);
   const sourceNodeRef = useRef(null);
 
-  const { localStream, remoteStream, isMuted, isVideoOff, toggleMute, toggleVideo, switchCamera } = webRTC;
+  const { localStream, remoteStream, isMuted, isVideoOff, facingMode, toggleMute, toggleVideo, switchCamera } = webRTC;
 
   // Bind Local Video Stream (always muted — no echo from own mic)
   useEffect(() => {
@@ -43,7 +43,9 @@ export default function VideoCallScreen() {
       remoteVideoRef.current.play().catch(() => {});
     }
 
-    // Build AudioContext anti-echo processing pipeline for remote audio
+    let animationFrameId = null;
+
+    // Build AudioContext anti-echo & Noise Gate processing pipeline for remote audio
     const setupAudio = async () => {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -59,14 +61,37 @@ export default function VideoCallScreen() {
         compressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
         compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
 
-        // Gain — full volume
+        // AnalyserNode for Real-Time Noise Gate Threshold Detection
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        const pcmData = new Float32Array(analyser.fftSize);
+
+        // Gain — Noise Gate output
         const gainNode = audioCtx.createGain();
         gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
-        // Chain: remote stream → compressor → gain → speakers
+        // Chain: remote stream → compressor → analyser → gain → speakers
         sourceNode.connect(compressor);
-        compressor.connect(gainNode);
+        compressor.connect(analyser);
+        analyser.connect(gainNode);
         gainNode.connect(audioCtx.destination);
+
+        // Noise Gate Loop: mutes audio during silence/ambient hiss, unmutes during human speech
+        const NOISE_THRESHOLD = 0.012; // RMS Threshold for voice vs background room hiss
+        const checkNoiseGate = () => {
+          analyser.getFloatTimeDomainData(pcmData);
+          let sumSquares = 0;
+          for (let i = 0; i < pcmData.length; i++) {
+            sumSquares += pcmData[i] * pcmData[i];
+          }
+          const rms = Math.sqrt(sumSquares / pcmData.length);
+          const targetGain = rms > NOISE_THRESHOLD ? 1.0 : 0.0;
+          gainNode.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.05);
+
+          animationFrameId = requestAnimationFrame(checkNoiseGate);
+        };
+
+        checkNoiseGate();
 
         audioCtxRef.current = audioCtx;
         sourceNodeRef.current = sourceNode;
@@ -92,6 +117,7 @@ export default function VideoCallScreen() {
     setupAudio();
 
     return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
       if (sourceNodeRef.current) { sourceNodeRef.current.disconnect(); sourceNodeRef.current = null; }
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         audioCtxRef.current.close();
@@ -179,19 +205,18 @@ export default function VideoCallScreen() {
 
       {/* ── Floating Local Video Preview ── */}
       <div className="absolute top-20 right-4 z-20 w-28 sm:w-36 h-40 sm:h-48 rounded-2xl overflow-hidden border-2 border-white/40 shadow-2xl bg-black">
-        {isVideoOff ? (
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`w-full h-full object-cover ${facingMode === 'user' ? 'transform -scale-x-100' : ''} ${isVideoOff ? 'hidden' : ''}`}
+        />
+        {isVideoOff && (
           <div className="w-full h-full bg-slate-800 flex flex-col items-center justify-center text-white/50 text-xs">
             <VideoOff className="w-6 h-6 mb-1" />
             <span>Camera Off</span>
           </div>
-        ) : (
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover transform -scale-x-100"
-          />
         )}
       </div>
 

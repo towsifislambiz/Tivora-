@@ -246,6 +246,20 @@ export async function recordCallHistory(callData) {
       updatedAt: serverTimestamp(),
       readBy: [callData.callerId]
     }, { merge: true });
+
+    // Update parent conversation metadata for left sidebar preview (Messenger / WhatsApp style)
+    const convRef = doc(db, "conversations", callData.conversationId);
+    await setDoc(convRef, {
+      lastMessage: statusLabel,
+      lastMessageSenderId: callData.callerId,
+      lastMessageAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      lastMessageReadBy: {
+        [callData.callerId]: new Date().toISOString()
+      },
+      participantIds: [callData.callerId, callData.receiverId],
+      participants: [callData.callerId, callData.receiverId]
+    }, { merge: true });
   } catch (err) {
     console.warn("recordCallHistory error:", err);
   }

@@ -270,10 +270,34 @@ export function subscribeToUserConversations(uid, callback) {
       const conversations = [];
       let totalUnread = 0;
 
-      for (const conv of rawConvDocs) {
+      for (let conv of rawConvDocs) {
         const partnerUid = conv.participantA === uid ? conv.participantB : conv.participantA;
         const partnerProfile = await getUserDocument(partnerUid);
-        
+
+        // Fetch actual latest message from messages subcollection (guarantees call logs & recent texts update sidebar)
+        try {
+          const latestMsgQuery = query(
+            collection(db, CONVERSATIONS_COLLECTION, conv.id, "messages"),
+            orderBy("createdAt", "desc"),
+            limit(1)
+          );
+          const latestMsgSnap = await getDocs(latestMsgQuery);
+          if (!latestMsgSnap.empty) {
+            const latestMsg = latestMsgSnap.docs[0].data();
+            if (latestMsg.text) {
+              conv.lastMessage = latestMsg.text;
+            }
+            if (latestMsg.createdAt) {
+              conv.lastMessageAt = latestMsg.createdAt;
+            }
+            if (latestMsg.senderId) {
+              conv.lastMessageSenderId = latestMsg.senderId;
+            }
+          }
+        } catch (msgErr) {
+          // Fallback to conv document fields if index or query notice occurs
+        }
+
         const lastReadTime = conv.lastMessageReadBy?.[uid];
         const lastMsgTime = conv.lastMessageAt?.toDate ? conv.lastMessageAt.toDate() : conv.lastMessageAt;
         const isUnread = Boolean(
@@ -290,6 +314,16 @@ export function subscribeToUserConversations(uid, callback) {
           isUnread
         });
       }
+
+      // Re-sort conversations by resolved latest message timestamp DESC
+      conversations.sort((a, b) => {
+        const getMs = (val) => {
+          if (!val) return 0;
+          if (val.toDate) return val.toDate().getTime();
+          return new Date(val).getTime() || 0;
+        };
+        return getMs(b.lastMessageAt) - getMs(a.lastMessageAt);
+      });
 
       callback({ conversations, totalUnread });
     } catch (err) {
