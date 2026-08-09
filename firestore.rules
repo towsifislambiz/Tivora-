@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. User Profiles Collection (users/{userId})
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      // Saved Posts Subcollection (users/{userId}/savedPosts/{postId})
+      match /savedPosts/{postId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Blocked Users Subcollection (users/{userId}/blockedUsers/{targetUid}) — Phase 10
+      match /blockedUsers/{targetUid} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Search History Subcollection (users/{userId}/searchHistory/{searchId}) — Phase 10
+      match /searchHistory/{searchId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // 2. O(1) Unique Username Mappings Collection (usernames/{username})
+    match /usernames/{username} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // 3. Top-Level Social Posts Collection (posts/{postId})
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+
+      // Likes Subcollection (posts/{postId}/likes/{userId})
+      match /likes/{userId} {
+        allow read: if true;
+        allow create, delete: if isAuthenticated() && request.auth.uid == userId;
+      }
+
+      // Comments Subcollection (posts/{postId}/comments/{commentId})
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      }
+
+      // Unique Share Tracking Subcollection (posts/{postId}/shares/{userId})
+      match /shares/{userId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+
+    // 4. Deterministic Friendships Collection (friendships/{friendshipId}) — Phase 6
+    match /friendships/{friendshipId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 5. Notifications Collection (notifications/{notificationId}) — Phase 7
+    match /notifications/{notificationId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 6. 1-to-1 Conversations Collection (conversations/{conversationId}) — Phase 8
+    match /conversations/{conversationId} {
+      allow read, write: if isAuthenticated();
+
+      // Subcollection: Messages (conversations/{conversationId}/messages/{messageId})
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // 7. Groups & Communities Collection (groups/{groupId}) — Phase 9
+    match /groups/{groupId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+
+      match /members/{userId} {
+        allow read: if true;
+        allow create, update, delete: if isAuthenticated();
+      }
+
+      match /joinRequests/{userId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      match /posts/{postId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update, delete: if isAuthenticated();
+      }
+    }
+
+    // 8. Group Slugs Registry (groupSlugs/{slug}) — Phase 9
+    match /groupSlugs/{slug} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+    }
+
+    // 9. Reports Collection (reports/{reportId}) — Phase 10
+    match /reports/{reportId} {
+      allow create: if isAuthenticated() && request.resource.data.reporterId == request.auth.uid;
+      allow read, update, delete: if isAuthenticated();
+    }
+
+    // 10. Real-Time Voice & Video Calling Signaling Collection (calls/{callId}) — Phase 12
+    match /calls/{callId} {
+      allow read, update, delete: if isAuthenticated() && (resource.data.callerId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.callerId == request.auth.uid;
+
+      match /callerCandidates/{candidateId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      match /receiverCandidates/{candidateId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+  }
+}

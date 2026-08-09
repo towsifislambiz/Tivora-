@@ -1,0 +1,30 @@
+{
+  "name": "Tivora",
+  "short_name": "Tivora",
+  "description": "Tivora — Connect · Share · Grow Together. A modern social platform for friends, communities, and real conversations.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F7F8FF",
+  "theme_color": "#6C5CE7",
+  "categories": ["social", "communication", "community"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

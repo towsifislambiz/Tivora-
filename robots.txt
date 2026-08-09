@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /#profile/
+Allow: /#group/
+Allow: /#post/
+
+Disallow: /#settings
+Disallow: /#messages
+Disallow: /#notifications
+Disallow: /#friends
+Disallow: /#saved
+Disallow: /#admin
+Disallow: /#search
+
+Sitemap: https://tivora.app/sitemap.xml
