@@ -23,42 +23,43 @@ export function CallProvider({ children }) {
   const { currentUser, userDoc } = useAuth();
   const webRTC = useWebRTC();
 
-  const [activeCall, setActiveCall] = useState(null); // Active call document data
-  const [incomingCall, setIncomingCall] = useState(null); // Incoming call document data
-  const [callState, setCallState] = useState('idle'); // 'idle' | 'calling' | 'ringing' | 'connecting' | 'connected' | 'reconnecting' | 'rejected' | 'cancelled' | 'missed' | 'busy' | 'failed' | 'ended'
+  const [activeCall, setActiveCall] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [callState, setCallState] = useState('idle');
   const [callDuration, setCallDuration] = useState(0);
 
   const activeCallRef = useRef(null);
   const callStateRef = useRef('idle');
+  const incomingCallRef = useRef(null);
   const timerRef = useRef(null);
   const callingTimeoutRef = useRef(null);
-
-  const incomingCallRef = useRef(null);
+  const unsubCallDocRef = useRef(null);
+  const unsubIceCandidatesRef = useRef(null);
 
   activeCallRef.current = activeCall;
   incomingCallRef.current = incomingCall;
   callStateRef.current = callState;
 
-  // Unsubscribe refs
-  const unsubCallDocRef = useRef(null);
-  const unsubIceCandidatesRef = useRef(null);
-
-  // 1. Listen for global incoming calls across the entire app (WhatsApp Multi-Device Ringing)
+  // ─── 1. Incoming Call Subscription (WhatsApp Multi-Device) ────────────────
   useEffect(() => {
     if (!currentUser?.uid) return;
 
     const unsubscribe = subscribeToIncomingCalls(currentUser.uid, async (callData) => {
-      // Security & Eligibility Check: Are they friends?
       const friendConfirmed = await areFriends(currentUser.uid, callData.callerId);
       if (!friendConfirmed) return;
 
-      // 1. If this exact call ID is already active or ringing on this device, ignore duplicate snapshot
-      if (activeCallRef.current?.callId === callData.callId || incomingCallRef.current?.callId === callData.callId) {
-        return;
-      }
+      // Ignore if already ringing or active for this exact call
+      if (
+        activeCallRef.current?.callId === callData.callId ||
+        incomingCallRef.current?.callId === callData.callId
+      ) return;
 
-      // 2. True Busy Protection: Only mark busy if user is currently engaged in a DIFFERENT active call
-      if (activeCallRef.current && activeCallRef.current.callId !== callData.callId && (callStateRef.current === 'connected' || callStateRef.current === 'calling')) {
+      // Only mark busy if engaged in a DIFFERENT active call
+      if (
+        activeCallRef.current &&
+        activeCallRef.current.callId !== callData.callId &&
+        (callStateRef.current === 'connected' || callStateRef.current === 'calling')
+      ) {
         await updateCallStatus(callData.callId, 'busy');
         await recordCallHistory({ ...callData, status: 'busy' });
         return;
@@ -71,7 +72,7 @@ export function CallProvider({ children }) {
     return () => unsubscribe();
   }, [currentUser?.uid]);
 
-  // 1b. Real-Time Incoming Call Document Status Subscription (WhatsApp Sync: Auto-dismiss when answered on another device, cancelled, or declined)
+  // ─── 1b. Auto-dismiss when answered/cancelled on another device ───────────
   useEffect(() => {
     if (!incomingCall?.callId || callState !== 'ringing') return;
 
@@ -82,54 +83,32 @@ export function CallProvider({ children }) {
         setCallState('idle');
         return;
       }
-
-      // If call status updated away from 'calling' (e.g. answered on another device, cancelled by caller, declined, timed out, or ended)
-      if (['connecting', 'connected', 'rejected', 'cancelled', 'missed', 'ended', 'busy'].includes(updatedCall.status)) {
-        // If call was accepted on another device or ended/cancelled, clear incoming popup silently
+      // Only dismiss for terminal statuses — NOT 'connecting' (receiver sets that themselves)
+      if (['rejected', 'cancelled', 'missed', 'ended', 'busy'].includes(updatedCall.status)) {
         setIncomingCall(null);
-        if (callStateRef.current === 'ringing') {
-          setCallState('idle');
-        }
+        if (callStateRef.current === 'ringing') setCallState('idle');
       }
     });
 
     return () => unsub();
   }, [incomingCall?.callId, callState]);
 
-  // Call Duration Timer
+  // ─── Call Duration Timer ──────────────────────────────────────────────────
   useEffect(() => {
     if (callState === 'connected') {
-      timerRef.current = setInterval(() => {
-        setCallDuration((prev) => prev + 1);
-      }, 1000);
+      timerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [callState]);
 
-  // Clean up all signaling listeners and timers
+  // ─── Reset / Cleanup ──────────────────────────────────────────────────────
   const resetCallState = useCallback(() => {
-    if (unsubCallDocRef.current) {
-      unsubCallDocRef.current();
-      unsubCallDocRef.current = null;
-    }
-    if (unsubIceCandidatesRef.current) {
-      unsubIceCandidatesRef.current();
-      unsubIceCandidatesRef.current = null;
-    }
-    if (callingTimeoutRef.current) {
-      clearTimeout(callingTimeoutRef.current);
-      callingTimeoutRef.current = null;
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
+    if (unsubCallDocRef.current) { unsubCallDocRef.current(); unsubCallDocRef.current = null; }
+    if (unsubIceCandidatesRef.current) { unsubIceCandidatesRef.current(); unsubIceCandidatesRef.current = null; }
+    if (callingTimeoutRef.current) { clearTimeout(callingTimeoutRef.current); callingTimeoutRef.current = null; }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     webRTC.cleanupMedia();
     setActiveCall(null);
     setIncomingCall(null);
@@ -137,20 +116,14 @@ export function CallProvider({ children }) {
     setCallDuration(0);
   }, [webRTC]);
 
-  // 2. Start Outgoing Call (Caller Flow)
+  // ─── 2. Start Outgoing Call ───────────────────────────────────────────────
   const startCall = useCallback(async (receiver, type = 'voice') => {
     const receiverUid = receiver?.uid || receiver?.id || receiver?.partner?.uid || receiver?.partner?.id;
-
-    if (!currentUser?.uid || !receiverUid) {
-      throw new Error("Could not find valid recipient UID to start call.");
-    }
+    if (!currentUser?.uid || !receiverUid) throw new Error("Could not find valid recipient UID.");
     if (callState !== 'idle') return;
 
-    // Check friendship & block status
     const isFriend = await areFriends(currentUser.uid, receiverUid);
-    if (!isFriend) {
-      throw new Error("You can only call users who are on your friends list.");
-    }
+    if (!isFriend) throw new Error("You can only call users who are on your friends list.");
 
     const callerData = {
       uid: currentUser.uid,
@@ -158,7 +131,6 @@ export function CallProvider({ children }) {
       username: userDoc?.username || userDoc?.profileId || 'user',
       photoURL: userDoc?.photoURL || currentUser.photoURL || ''
     };
-
     const receiverData = {
       uid: receiverUid,
       displayName: receiver.displayName || receiver.name || receiver.partner?.displayName || 'Tivora User',
@@ -169,33 +141,37 @@ export function CallProvider({ children }) {
     setCallState('calling');
 
     try {
-      // 1. Create Call Document in Firestore first (get callId)
+      // 1. Create Firestore call doc first to get callId
       const newCallData = await createCallDoc(callerData, receiverData, type);
       const callId = newCallData.callId;
       setActiveCall(newCallData);
 
-      // 2. Get User Media Tracks
+      // 2. Get microphone/camera
       await webRTC.initLocalMedia(type, 'user');
 
-      // 3. Create WebRTC PeerConnection AFTER media is ready (tracks attach automatically)
+      // 3. Create PeerConnection (auto-attaches tracks from step 2)
       const pc = webRTC.createPeerConnection((candidate) => {
         addIceCandidate(callId, true, candidate);
       });
 
-      // 4. Create SDP Offer and push to Firestore
+      // 4. Create SDP offer and store in Firestore
       const offer = await webRTC.createOffer();
       await sendCallOffer(callId, offer);
 
-      // 4. Subscribe to Receiver's ICE Candidates
+      // 5. Listen for receiver's ICE candidates
       unsubIceCandidatesRef.current = subscribeToIceCandidates(callId, true, (candidate) => {
         webRTC.addRemoteIceCandidate(candidate);
       });
 
-      // 5. Subscribe to Call Doc for Answer or Status changes (rejected, busy, ended)
+      // 6. Listen for answer / status changes
       unsubCallDocRef.current = subscribeToCallDoc(callId, async (updatedCall) => {
         if (!updatedCall) return;
 
-        if (updatedCall.status === 'connecting' && updatedCall.answer && pc.signalingState !== 'stable') {
+        if (
+          updatedCall.status === 'connecting' &&
+          updatedCall.answer &&
+          pc.signalingState === 'have-local-offer'
+        ) {
           await webRTC.handleAnswer(updatedCall.answer);
           setCallState('connected');
           if (callingTimeoutRef.current) clearTimeout(callingTimeoutRef.current);
@@ -210,10 +186,12 @@ export function CallProvider({ children }) {
         } else if (updatedCall.status === 'ended') {
           setCallState('ended');
           setTimeout(() => resetCallState(), 1500);
+        } else if (updatedCall.status === 'cancelled' || updatedCall.status === 'missed') {
+          resetCallState();
         }
       });
 
-      // 6. 30-Second Timeout for No Answer
+      // 7. 30-second no-answer timeout
       callingTimeoutRef.current = setTimeout(async () => {
         if (callStateRef.current === 'calling') {
           setCallState('missed');
@@ -230,67 +208,61 @@ export function CallProvider({ children }) {
     }
   }, [currentUser, userDoc, callState, webRTC, resetCallState]);
 
-  // 3. Accept Incoming Call (Receiver Flow)
+  // ─── 3. Accept Incoming Call ──────────────────────────────────────────────
   const acceptCall = useCallback(async () => {
     if (!incomingCall?.callId) return;
 
     const callId = incomingCall.callId;
     const type = incomingCall.type;
-    const snapshot = incomingCall;
-    setActiveCall(incomingCall);
+    const callSnapshot = { ...incomingCall };
+
+    setActiveCall(callSnapshot);
     setIncomingCall(null);
     setCallState('connecting');
 
     try {
-      // 1. Get Local Media FIRST so tracks are ready before PeerConnection
+      // 1. Get microphone/camera FIRST
       await webRTC.initLocalMedia(type, 'user');
 
-      // 2. Create Peer Connection AFTER media is ready (tracks auto-attach)
+      // 2. Create PeerConnection AFTER media (tracks auto-attach)
       webRTC.createPeerConnection((candidate) => {
         addIceCandidate(callId, false, candidate);
       });
 
-      // 3. Fetch latest offer from Firestore (handles race where offer arrives after ringing)
-      let offer = snapshot.offer;
+      // 3. Get the SDP offer — try snapshot, then fresh Firestore fetch, then wait
+      let offer = callSnapshot.offer || null;
+
       if (!offer) {
-        const callDocRef = doc(db, 'calls', callId);
-        const callDocSnap = await getDoc(callDocRef);
-        if (callDocSnap.exists()) {
-          offer = callDocSnap.data()?.offer || null;
-        }
+        const callDocSnap = await getDoc(doc(db, 'calls', callId));
+        if (callDocSnap.exists()) offer = callDocSnap.data()?.offer || null;
       }
 
       if (!offer) {
-        // Subscribe and wait for offer to arrive
-        await new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error('Offer timeout')), 10000);
-          const unsub = subscribeToCallDoc(callId, (updatedCall) => {
-            if (updatedCall?.offer) {
-              offer = updatedCall.offer;
-              clearTimeout(timeout);
-              unsub();
-              resolve();
+        // Wait up to 8s for offer to arrive in Firestore
+        offer = await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Offer timeout')), 8000);
+          const unsub = subscribeToCallDoc(callId, (updated) => {
+            if (updated?.offer) {
+              clearTimeout(timeout); unsub(); resolve(updated.offer);
             }
-            if (updatedCall?.status === 'cancelled' || updatedCall?.status === 'ended') {
-              clearTimeout(timeout);
-              unsub();
-              reject(new Error('Call cancelled'));
+            if (['cancelled', 'ended', 'missed'].includes(updated?.status)) {
+              clearTimeout(timeout); unsub(); reject(new Error('Call ended'));
             }
           });
         });
       }
 
-      // 4. Subscribe to Caller's ICE Candidates
+      // 4. Subscribe to caller's ICE candidates
       unsubIceCandidatesRef.current = subscribeToIceCandidates(callId, false, (candidate) => {
         webRTC.addRemoteIceCandidate(candidate);
       });
 
-      // 5. Generate Answer from Offer SDP
+      // 5. Process offer → create answer → send back
       const answer = await webRTC.handleOfferAndCreateAnswer(offer);
       await sendCallAnswer(callId, answer);
       setCallState('connected');
 
-      // 6. Subscribe to Call Doc for status updates (ended)
+      // 6. Subscribe to call doc for 'ended' status
       unsubCallDocRef.current = subscribeToCallDoc(callId, (updatedCall) => {
         if (!updatedCall) return;
         if (updatedCall.status === 'ended') {
@@ -301,14 +273,14 @@ export function CallProvider({ children }) {
 
     } catch (err) {
       console.error("acceptCall error:", err);
-      if (err.message !== 'Call cancelled') {
+      if (!['Call ended', 'Offer timeout'].includes(err.message)) {
         await updateCallStatus(callId, 'failed').catch(() => {});
       }
       resetCallState();
     }
   }, [incomingCall, webRTC, resetCallState]);
 
-  // 4. Decline Incoming Call
+  // ─── 4. Decline Incoming Call ─────────────────────────────────────────────
   const declineCall = useCallback(async () => {
     if (!incomingCall?.callId) return;
     const targetCall = { ...incomingCall, status: 'rejected' };
@@ -318,12 +290,9 @@ export function CallProvider({ children }) {
     await recordCallHistory(targetCall);
   }, [incomingCall]);
 
-  // 5. Cancel Outgoing Call (Caller)
+  // ─── 5. Cancel Outgoing Call ──────────────────────────────────────────────
   const cancelCall = useCallback(async () => {
-    if (!activeCall?.callId) {
-      resetCallState();
-      return;
-    }
+    if (!activeCall?.callId) { resetCallState(); return; }
     const callId = activeCall.callId;
     setCallState('cancelled');
     await updateCallStatus(callId, 'cancelled');
@@ -331,46 +300,38 @@ export function CallProvider({ children }) {
     resetCallState();
   }, [activeCall, resetCallState]);
 
-  // 6. End Active Call
+  // ─── 6. End Active Call ───────────────────────────────────────────────────
   const endActiveCall = useCallback(async () => {
-    if (!activeCall?.callId) {
-      resetCallState();
-      return;
-    }
+    if (!activeCall?.callId) { resetCallState(); return; }
     const callId = activeCall.callId;
     const duration = callDuration;
-
     setCallState('ended');
-    await updateCallStatus(callId, 'ended', { duration });
+    await updateCallStatus(callId, 'ended', { endedBy: currentUser?.uid, duration });
     await recordCallHistory({ ...activeCall, status: 'ended', duration });
-    resetCallState();
-  }, [activeCall, callDuration, resetCallState]);
+    setTimeout(() => resetCallState(), 1500);
+  }, [activeCall, callDuration, currentUser, resetCallState]);
 
   return (
-    <CallContext.Provider
-      value={{
-        activeCall,
-        incomingCall,
-        callState,
-        callDuration,
-        webRTC,
-        startCall,
-        acceptCall,
-        declineCall,
-        cancelCall,
-        endActiveCall,
-        resetCallState
-      }}
-    >
+    <CallContext.Provider value={{
+      activeCall,
+      incomingCall,
+      callState,
+      callDuration,
+      webRTC,
+      startCall,
+      acceptCall,
+      declineCall,
+      cancelCall,
+      endActiveCall,
+      resetCallState,
+    }}>
       {children}
     </CallContext.Provider>
   );
 }
 
 export function useCall() {
-  const context = useContext(CallContext);
-  if (!context) {
-    throw new Error("useCall must be used within a CallProvider");
-  }
-  return context;
+  const ctx = useContext(CallContext);
+  if (!ctx) throw new Error('useCall must be used within a CallProvider');
+  return ctx;
 }
