@@ -100,31 +100,26 @@ export function useWebRTC() {
 
     const constraints = {
       audio: {
-        // Core echo & noise controls (W3C standard)
-        echoCancellation: { ideal: true },
-        noiseSuppression: { ideal: true },
-        autoGainControl: { ideal: true },
-        // Zero latency pipeline
-        latency: { ideal: 0, max: 0.01 },
-        sampleRate: { ideal: 48000 },
-        channelCount: { ideal: 1, exact: 1 },
-        // Chrome/Chromium experimental echo cancellation flags
-        googEchoCancellation: true,
-        googEchoCancellation2: true,
-        googDAEchoCancellation: true,
-        googNoiseSuppression: true,
-        googNoiseSuppression2: true,
-        googHighpassFilter: true,
-        googAudioMirroring: false,
-        googAutoGainControl: true,
-        googAutoGainControl2: true,
-        googTypingNoiseDetection: true,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
       },
       video: callType === 'video' ? { facingMode: customFacing } : false
     };
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (constraintErr) {
+        console.warn("Primary audio/video constraints failed, falling back to basic media request:", constraintErr);
+        // Fallback for hardware devices that reject specific audio constraint objects
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: callType === 'video' ? { facingMode: customFacing } : false
+        });
+      }
+
       localStreamRef.current = stream;
       setLocalStream(stream);
 
