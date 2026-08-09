@@ -23,6 +23,22 @@ export function useWebRTC() {
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
+  const iceCandidatesQueueRef = useRef([]); // Buffer for early ICE candidates
+  const hasRemoteDescriptionRef = useRef(false);
+
+  // Drain queued ICE candidates after remote description is set
+  const processQueuedIceCandidates = useCallback(async () => {
+    if (!pcRef.current || iceCandidatesQueueRef.current.length === 0) return;
+    const queued = [...iceCandidatesQueueRef.current];
+    iceCandidatesQueueRef.current = [];
+    for (const candidateData of queued) {
+      try {
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidateData));
+      } catch (e) {
+        console.warn('Queued ICE add error:', e);
+      }
+    }
+  }, []);
 
   // Initialize RTCPeerConnection
   const createPeerConnection = useCallback((onIceCandidate) => {
@@ -137,22 +153,30 @@ export function useWebRTC() {
   const handleOfferAndCreateAnswer = useCallback(async (offerSdp) => {
     if (!pcRef.current) throw new Error("PeerConnection not initialized");
     await pcRef.current.setRemoteDescription(new RTCSessionDescription(offerSdp));
+    hasRemoteDescriptionRef.current = true;
+    await processQueuedIceCandidates();
     const answer = await pcRef.current.createAnswer();
     await pcRef.current.setLocalDescription(answer);
     return answer;
-  }, []);
+  }, [processQueuedIceCandidates]);
 
   // Receive Answer
   const handleAnswer = useCallback(async (answerSdp) => {
     if (!pcRef.current) return;
     if (pcRef.current.signalingState !== 'stable') {
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(answerSdp));
+      hasRemoteDescriptionRef.current = true;
+      await processQueuedIceCandidates();
     }
-  }, []);
+  }, [processQueuedIceCandidates]);
 
-  // Add Remote ICE Candidate
+  // Add Remote ICE Candidate (queue if remote description not yet set)
   const addRemoteIceCandidate = useCallback(async (candidateData) => {
     if (!pcRef.current || !candidateData) return;
+    if (!hasRemoteDescriptionRef.current) {
+      iceCandidatesQueueRef.current.push(candidateData);
+      return;
+    }
     try {
       const candidate = new RTCIceCandidate(candidateData);
       await pcRef.current.addIceCandidate(candidate);
@@ -242,6 +266,8 @@ export function useWebRTC() {
     setIsVideoOff(false);
     setConnectionState('closed');
     setPermissionError(null);
+    iceCandidatesQueueRef.current = [];
+    hasRemoteDescriptionRef.current = false;
   }, []);
 
   useEffect(() => {

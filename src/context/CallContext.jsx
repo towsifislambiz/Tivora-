@@ -14,6 +14,8 @@ import {
 } from '../firebase/callService';
 import { areFriends } from '../firebase/messageService';
 import { getFriendshipStatus } from '../firebase/friendService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/FirebaseConfig';
 
 const CallContext = createContext(null);
 
@@ -167,19 +169,20 @@ export function CallProvider({ children }) {
     setCallState('calling');
 
     try {
-      // 1. Get User Media Tracks
-      await webRTC.initLocalMedia(type, 'user');
-
-      // 2. Create Call Document in Firestore
+      // 1. Create Call Document in Firestore first (get callId)
       const newCallData = await createCallDoc(callerData, receiverData, type);
       const callId = newCallData.callId;
       setActiveCall(newCallData);
 
-      // 3. Create WebRTC PeerConnection & Offer
+      // 2. Get User Media Tracks
+      await webRTC.initLocalMedia(type, 'user');
+
+      // 3. Create WebRTC PeerConnection AFTER media is ready (tracks attach automatically)
       const pc = webRTC.createPeerConnection((candidate) => {
         addIceCandidate(callId, true, candidate);
       });
 
+      // 4. Create SDP Offer and push to Firestore
       const offer = await webRTC.createOffer();
       await sendCallOffer(callId, offer);
 
@@ -233,32 +236,61 @@ export function CallProvider({ children }) {
 
     const callId = incomingCall.callId;
     const type = incomingCall.type;
+    const snapshot = incomingCall;
     setActiveCall(incomingCall);
     setIncomingCall(null);
     setCallState('connecting');
 
     try {
-      // 1. Get Local Media
+      // 1. Get Local Media FIRST so tracks are ready before PeerConnection
       await webRTC.initLocalMedia(type, 'user');
 
-      // 2. Create Peer Connection
-      const pc = webRTC.createPeerConnection((candidate) => {
+      // 2. Create Peer Connection AFTER media is ready (tracks auto-attach)
+      webRTC.createPeerConnection((candidate) => {
         addIceCandidate(callId, false, candidate);
       });
 
-      // 3. Subscribe to Caller's ICE Candidates
+      // 3. Fetch latest offer from Firestore (handles race where offer arrives after ringing)
+      let offer = snapshot.offer;
+      if (!offer) {
+        const callDocRef = doc(db, 'calls', callId);
+        const callDocSnap = await getDoc(callDocRef);
+        if (callDocSnap.exists()) {
+          offer = callDocSnap.data()?.offer || null;
+        }
+      }
+
+      if (!offer) {
+        // Subscribe and wait for offer to arrive
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Offer timeout')), 10000);
+          const unsub = subscribeToCallDoc(callId, (updatedCall) => {
+            if (updatedCall?.offer) {
+              offer = updatedCall.offer;
+              clearTimeout(timeout);
+              unsub();
+              resolve();
+            }
+            if (updatedCall?.status === 'cancelled' || updatedCall?.status === 'ended') {
+              clearTimeout(timeout);
+              unsub();
+              reject(new Error('Call cancelled'));
+            }
+          });
+        });
+      }
+
+      // 4. Subscribe to Caller's ICE Candidates
       unsubIceCandidatesRef.current = subscribeToIceCandidates(callId, false, (candidate) => {
         webRTC.addRemoteIceCandidate(candidate);
       });
 
-      // 4. Read Offer & Generate Answer
-      if (incomingCall.offer) {
-        const answer = await webRTC.handleOfferAndCreateAnswer(incomingCall.offer);
-        await sendCallAnswer(callId, answer);
-        setCallState('connected');
-      }
+      // 5. Generate Answer from Offer SDP
+      const answer = await webRTC.handleOfferAndCreateAnswer(offer);
+      await sendCallAnswer(callId, answer);
+      setCallState('connected');
 
-      // 5. Subscribe to Call Doc for status updates (ended)
+      // 6. Subscribe to Call Doc for status updates (ended)
       unsubCallDocRef.current = subscribeToCallDoc(callId, (updatedCall) => {
         if (!updatedCall) return;
         if (updatedCall.status === 'ended') {
@@ -269,7 +301,9 @@ export function CallProvider({ children }) {
 
     } catch (err) {
       console.error("acceptCall error:", err);
-      await updateCallStatus(callId, 'failed');
+      if (err.message !== 'Call cancelled') {
+        await updateCallStatus(callId, 'failed').catch(() => {});
+      }
       resetCallState();
     }
   }, [incomingCall, webRTC, resetCallState]);
