@@ -304,7 +304,7 @@ function MainAppContent() {
 
         // Render Protected Application UI (Phase 1 preserved)
         return (
-          <div className={`flex flex-col bg-brand-bg text-brand-mainText ${activeScreen === 'messages' ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen'}`}>
+          <div className={`flex flex-col bg-brand-bg text-brand-mainText ${activeScreen === 'messages' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
             {/* 1. Dev Switcher Header Bar */}
             <DevBar
               activeScreen={activeScreen}

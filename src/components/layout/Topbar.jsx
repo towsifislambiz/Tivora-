@@ -194,7 +194,11 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
     }
   };
 
-  const isMobileChatActive = typeof window !== 'undefined' && (window.location.hash.includes('?user=') || window.location.hash.includes('?conversation='));
+  const isMobileChatActive = typeof window !== 'undefined' && (
+    window.location.hash.includes('?user=') || 
+    window.location.hash.includes('?conversation=') ||
+    (typeof document !== 'undefined' && !!document.querySelector('.chat-window-active'))
+  );
 
   if (isMobileChatActive) {
     // Hide topbar on mobile during active chat for 100% full bleed Messenger experience

@@ -618,7 +618,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
       {/* ── 3. FIXED FLOATING COMPOSER ── */}
       <div 
         ref={composerRef}
-        className="px-3 py-3.5 bg-brand-surface shrink-0 z-30 pb-safe w-full min-w-0 border-t border-brand-border/40"
+        className="px-3 py-3.5 bg-brand-surface shrink-0 z-40 pb-safe w-full min-w-0 border-t border-brand-border/40"
       >
         {isRecording ? (
           /* Voice Note Recording Bar */

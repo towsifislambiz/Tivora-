@@ -125,11 +125,22 @@
   position: relative !important;
 }
 
-body:has(.chat-window-active) .mobile-bottom-dock {
+body:has(.chat-window-active) .mobile-bottom-dock,
+.chat-window-active ~ .mobile-bottom-dock {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 @media (max-width: 767px) {
+  body:has(.chat-window-active) .mobile-bottom-dock {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
   body:has(.chat-window-active) {
     overflow: hidden !important;
     height: 100dvh !important;

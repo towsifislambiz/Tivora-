@@ -27,8 +27,37 @@ export default function MobileBottomNav({ activeScreen, setActiveScreen, onOpenC
     };
   }, [currentUser?.uid]);
 
+  const [isChatActive, setIsChatActive] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return activeScreen === 'messages' && (
+      window.location.hash.includes('?user=') || 
+      window.location.hash.includes('?conversation=') ||
+      !!document.querySelector('.chat-window-active')
+    );
+  });
+
+  useEffect(() => {
+    const checkChatActive = () => {
+      if (activeScreen !== 'messages') {
+        setIsChatActive(false);
+        return;
+      }
+      const hasChatHash = window.location.hash.includes('?user=') || window.location.hash.includes('?conversation=');
+      const hasChatDOM = typeof document !== 'undefined' && !!document.querySelector('.chat-window-active');
+      setIsChatActive(hasChatHash || hasChatDOM);
+    };
+
+    checkChatActive();
+    window.addEventListener('hashchange', checkChatActive);
+    const interval = setInterval(checkChatActive, 100);
+    return () => {
+      window.removeEventListener('hashchange', checkChatActive);
+      clearInterval(interval);
+    };
+  }, [activeScreen]);
+
   // Native Mobile UX: Hide bottom nav dock when inside an active chat window
-  if (activeScreen === 'messages' && typeof window !== 'undefined' && (window.location.hash.includes('?user=') || window.location.hash.includes('?conversation='))) {
+  if (isChatActive) {
     return null;
   }
 
