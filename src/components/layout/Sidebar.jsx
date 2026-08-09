@@ -12,33 +12,13 @@ import {
   Plus 
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { subscribeToUserNotifications } from '../../firebase/notificationService';
-import { subscribeToUserConversations } from '../../firebase/messageService';
+import { useRealtime } from '../../hooks/useRealtime';
 
 export default function Sidebar({ activeScreen, setActiveScreen, onShowToast }) {
-  const { currentUser, userDoc } = useAuth();
-
-  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  const { userDoc } = useAuth();
+  const { unreadNotifCount, unreadMsgCount } = useRealtime();
 
   const isAdmin = userDoc?.role === 'admin' || userDoc?.role === 'owner' || userDoc?.email === 'demo@tivora.app';
-
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-
-    const unsubscribeNotifs = subscribeToUserNotifications(currentUser.uid, ({ unreadCount }) => {
-      setUnreadNotifCount(unreadCount);
-    });
-
-    const unsubscribeMsgs = subscribeToUserConversations(currentUser.uid, ({ totalUnread }) => {
-      setUnreadMsgCount(totalUnread);
-    });
-
-    return () => {
-      unsubscribeNotifs();
-      unsubscribeMsgs();
-    };
-  }, [currentUser?.uid]);
 
   const mainNav = [
     { id: 'home', label: 'Home', icon: Home },

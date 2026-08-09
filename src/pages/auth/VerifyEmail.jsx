@@ -46,26 +46,26 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div class="min-h-screen bg-brand-bg flex items-center justify-center p-4">
-      <div class="w-full max-w-md bg-brand-surface rounded-3xl p-8 border border-brand-border shadow-soft-lg space-y-6 text-center">
+    <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-brand-surface rounded-3xl p-8 border border-brand-border shadow-soft-lg space-y-6 text-center">
         {/* Email Icon */}
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-brand-lavender text-brand-purple shadow-soft-sm">
-          <Mail class="w-8 h-8" />
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-brand-lavender text-brand-purple shadow-soft-sm">
+          <Mail className="w-8 h-8" />
         </div>
 
         {/* Header */}
-        <div class="space-y-1">
-          <h1 class="text-2xl font-bold text-brand-mainText tracking-tight">Check Your Email</h1>
-          <p class="text-xs text-brand-mutedText">We've sent a verification link to:</p>
-          <p class="text-sm font-bold text-brand-purple mt-1 break-all">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold text-brand-mainText tracking-tight">Check Your Email</h1>
+          <p className="text-xs text-brand-mutedText">We've sent a verification link to:</p>
+          <p className="text-sm font-bold text-brand-purple mt-1 break-all">
             {currentUser?.email || 'user@example.com'}
           </p>
         </div>
 
         {/* Info Box */}
-        <div class="bg-brand-lavender/60 p-4 rounded-2xl text-xs text-brand-mainText space-y-1 text-left border border-brand-border">
-          <p class="font-bold">Next steps:</p>
-          <ol class="list-decimal list-inside space-y-1 text-brand-mutedText">
+        <div className="bg-brand-lavender/60 p-4 rounded-2xl text-xs text-brand-mainText space-y-1 text-left border border-brand-border">
+          <p className="font-bold">Next steps:</p>
+          <ol className="list-decimal list-inside space-y-1 text-brand-mutedText">
             <li>Open your email inbox.</li>
             <li>Click the verification link provided.</li>
             <li>Return here and click "I've Verified My Email".</li>
@@ -74,34 +74,34 @@ export default function VerifyEmail() {
 
         {/* Status Messages */}
         {message && (
-          <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-2xl text-xs flex items-center gap-2">
-            <CheckCircle2 class="w-4 h-4 shrink-0" />
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-2xl text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{message}</span>
           </div>
         )}
 
         {error && (
-          <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-2xl text-xs flex items-center gap-2 text-left">
-            <AlertCircle class="w-4 h-4 shrink-0" />
+          <div className="bg-brand-pink/10 border border-brand-pink/30 text-brand-pink px-4 py-3 rounded-2xl text-xs flex items-center gap-2 text-left">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Action Buttons */}
-        <div class="space-y-3 pt-2">
+        <div className="space-y-3 pt-2">
           <button
             onClick={handleCheckVerification}
             disabled={checking}
-            class="w-full h-11 rounded-full bg-primary-gradient text-white font-semibold text-sm shadow-gradient-glow hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full h-11 rounded-lg bg-primary-gradient text-white font-semibold text-sm shadow-gradient-glow hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {checking ? (
               <>
-                <RefreshCw class="w-4 h-4 animate-spin" />
+                <RefreshCw className="w-4 h-4 animate-spin" />
                 <span>Checking status...</span>
               </>
             ) : (
               <>
-                <CheckCircle2 class="w-4 h-4" />
+                <CheckCircle2 className="w-4 h-4" />
                 <span>I've Verified My Email</span>
               </>
             )}
@@ -110,19 +110,19 @@ export default function VerifyEmail() {
           <button
             onClick={handleResend}
             disabled={resending}
-            class="w-full h-10 rounded-full border border-brand-border text-brand-mainText font-semibold text-xs hover:bg-brand-lavender transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full h-10 rounded-lg border border-brand-border text-brand-mainText font-semibold text-xs hover:bg-brand-lavender transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {resending ? 'Sending email...' : 'Resend Verification Email'}
           </button>
         </div>
 
         {/* Logout Button */}
-        <div class="pt-4 border-t border-brand-border">
+        <div className="pt-4 border-t border-brand-border">
           <button
             onClick={logout}
-            class="text-xs text-brand-mutedText hover:text-red-500 font-semibold inline-flex items-center gap-1.5 transition-colors"
+            className="text-xs text-brand-mutedText hover:text-red-500 font-semibold inline-flex items-center gap-1.5 transition-colors"
           >
-            <LogOut class="w-3.5 h-3.5" />
+            <LogOut className="w-3.5 h-3.5" />
             <span>Back to Sign In (Logout)</span>
           </button>
         </div>

@@ -70,86 +70,86 @@ export default function EditPostModal({ isOpen, post, onClose, onPostUpdated, on
   };
 
   return (
-    <div class="fixed inset-0 z-50 bg-brand-mainText/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-brand-surface rounded-3xl w-full max-w-lg shadow-soft-lg border border-brand-border overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 bg-brand-mainText/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-brand-surface rounded-3xl w-full max-w-lg shadow-soft-lg border border-brand-border overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header */}
-        <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
-          <h3 class="font-bold text-lg text-brand-mainText">Edit Post</h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border">
+          <h3 className="font-bold text-lg text-brand-mainText">Edit Post</h3>
           <button
             onClick={onClose}
-            class="w-8 h-8 rounded-full hover:bg-brand-lavender text-brand-mutedText hover:text-brand-mainText flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-full hover:bg-brand-lavender text-brand-mutedText hover:text-brand-mainText flex items-center justify-center transition-colors"
           >
-            <X class="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div class="mx-6 mt-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-2xl text-xs flex items-center gap-2">
-            <AlertCircle class="w-4 h-4 shrink-0" />
+          <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-2xl text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} class="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Edit your post content..."
-            class="w-full min-h-[120px] text-sm text-brand-mainText outline-none resize-none bg-brand-lavender/50 focus:bg-white border border-transparent focus:border-brand-purple rounded-2xl p-4 transition-all"
+            className="w-full min-h-[120px] text-sm text-brand-mainText outline-none resize-none bg-brand-lavender/50 focus:bg-brand-surface border border-transparent focus:border-brand-purple rounded-2xl p-4 transition-all"
           />
 
           {/* Image Preview Container */}
           {(newImagePreview || (currentImageURL && !removeImage)) && (
-            <div class="relative rounded-2xl overflow-hidden max-h-60 border border-brand-border group">
+            <div className="relative rounded-2xl overflow-hidden max-h-60 border border-brand-border group">
               <img
                 src={newImagePreview || currentImageURL}
                 alt="Post Attachment Preview"
-                class="w-full h-full object-cover max-h-60"
+                className="w-full h-full object-cover max-h-60"
               />
               <button
                 type="button"
                 onClick={handleRemoveCurrentImage}
-                class="absolute top-2 right-2 p-2 rounded-full bg-red-500 text-white shadow-soft-md hover:bg-red-600 transition-colors"
+                className="absolute top-2 right-2 p-2 rounded-full bg-red-500 text-white shadow-soft-md hover:bg-red-600 transition-colors"
                 title="Remove Image"
               >
-                <Trash2 class="w-4 h-4" />
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           )}
 
           {/* Replace Image Button */}
-          <div class="flex items-center gap-3">
-            <label class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-lavender text-brand-purple hover:bg-brand-purple/10 font-bold text-xs cursor-pointer transition-all border border-brand-purple/20">
-              <Image class="w-4 h-4" />
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-lavender text-brand-purple hover:bg-brand-purple/10 font-bold text-xs cursor-pointer transition-all border border-brand-purple/20">
+              <Image className="w-4 h-4" />
               <span>{(newImagePreview || (currentImageURL && !removeImage)) ? 'Replace Image' : 'Add Image'}</span>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageSelect}
-                class="hidden"
+                className="hidden"
               />
             </label>
           </div>
 
           {/* Footer Actions */}
-          <div class="pt-3 border-t border-brand-border flex items-center justify-end gap-3">
+          <div className="pt-3 border-t border-brand-border flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              class="px-5 py-2 rounded-full border border-brand-border text-brand-mainText font-semibold text-xs hover:bg-brand-lavender"
+              className="px-5 py-2 rounded-full border border-brand-border text-brand-mainText font-semibold text-xs hover:bg-brand-lavender"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              class="px-6 py-2 rounded-full bg-primary-gradient text-white font-semibold text-xs shadow-gradient-glow hover:scale-105 transition-transform disabled:opacity-50 inline-flex items-center gap-2"
+              className="px-6 py-2 rounded-full bg-primary-gradient text-white font-semibold text-xs shadow-gradient-glow hover:scale-105 transition-transform disabled:opacity-50 inline-flex items-center gap-2"
             >
               {saving ? (
                 <>
-                  <Loader2 class="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Saving...</span>
                 </>
               ) : (

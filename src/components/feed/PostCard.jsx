@@ -318,9 +318,9 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
   };
 
   return (
-    <div class="bg-brand-surface rounded-3xl p-6 border border-brand-border shadow-soft-sm space-y-4 relative">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3.5 cursor-pointer group" onClick={handleAuthorClick}>
+    <div className="bg-brand-surface rounded-3xl p-6 border border-brand-border shadow-soft-sm space-y-4 relative">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3.5 cursor-pointer group" onClick={handleAuthorClick}>
           <UserAvatar
             src={authorAvatar}
             name={authorName}
@@ -328,47 +328,47 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
             className="group-hover:scale-105 transition-transform"
           />
           <div>
-            <h4 class="font-bold text-sm text-brand-mainText leading-tight group-hover:text-brand-purple transition-colors">
+            <h4 className="font-bold text-sm text-brand-mainText leading-tight group-hover:text-brand-purple transition-colors">
               {authorName}
             </h4>
-            <div class="text-xs text-brand-mutedText mt-0.5">
+            <div className="text-xs text-brand-mutedText mt-0.5">
               @{authorUsername} · {timeFormatted}
             </div>
           </div>
         </div>
 
-        <div class="relative" ref={menuRef}>
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowMenu(!showMenu)}
-            class="p-2 rounded-full hover:bg-brand-lavender text-brand-mutedText transition-colors"
+            className="p-2 rounded-full hover:bg-brand-lavender text-brand-mutedText transition-colors"
           >
-            <MoreHorizontal class="w-5 h-5" />
+            <MoreHorizontal className="w-5 h-5" />
           </button>
 
           {showMenu && (
-            <div class="absolute right-0 top-10 z-30 w-48 bg-brand-surface rounded-2xl border border-brand-border shadow-soft-lg py-2">
+            <div className="absolute right-0 top-10 z-30 w-48 bg-brand-surface rounded-2xl border border-brand-border shadow-soft-lg py-2">
               {isOwner && (
                 <>
                   <button
                     onClick={() => { setShowMenu(false); setIsEditModalOpen(true); }}
-                    class="w-full px-4 py-2 text-left text-xs font-semibold text-brand-mainText hover:bg-brand-lavender flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-xs font-semibold text-brand-mainText hover:bg-brand-lavender flex items-center gap-2"
                   >
-                    <Edit3 class="w-4 h-4 text-brand-purple" /> Edit Post
+                    <Edit3 className="w-4 h-4 text-brand-purple" /> Edit Post
                   </button>
                   <button
                     onClick={() => { setShowMenu(false); setIsDeleteModalOpen(true); }}
-                    class="w-full px-4 py-2 text-left text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2"
                   >
-                    <Trash2 class="w-4 h-4" /> Delete Post
+                    <Trash2 className="w-4 h-4" /> Delete Post
                   </button>
-                  <div class="border-t border-brand-border my-1" />
+                  <div className="border-t border-brand-border my-1" />
                 </>
               )}
               <button
                 onClick={() => { setShowMenu(false); handleShareClick(); }}
-                class="w-full px-4 py-2 text-left text-xs font-semibold text-brand-mainText hover:bg-brand-lavender flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-xs font-semibold text-brand-mainText hover:bg-brand-lavender flex items-center gap-2"
               >
-                {copiedLink ? <Check class="w-4 h-4 text-emerald-500" /> : <LinkIcon class="w-4 h-4 text-brand-purple" />}
+                {copiedLink ? <Check className="w-4 h-4 text-emerald-500" /> : <LinkIcon className="w-4 h-4 text-brand-purple" />}
                 Copy Link
               </button>
             </div>
@@ -377,7 +377,7 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
       </div>
 
       {post.content && (
-        <p class="text-sm sm:text-base text-brand-mainText leading-relaxed whitespace-pre-line">{post.content}</p>
+        <p className="text-sm sm:text-base text-brand-mainText leading-relaxed whitespace-pre-line">{post.content}</p>
       )}
 
       {(post.imageURL || post.image) && (
@@ -399,12 +399,12 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
         </div>
       )}
 
-      <div class="flex items-center justify-between text-xs text-brand-mutedText py-2 border-b border-brand-border">
-        <div class="cursor-pointer hover:underline" onClick={() => setIsLikersModalOpen(true)}>
-          <span class="font-bold text-brand-mainText">{likeCount}</span> Likes
+      <div className="flex items-center justify-between text-xs text-brand-mutedText py-2 border-b border-brand-border">
+        <div className="cursor-pointer hover:underline" onClick={() => setIsLikersModalOpen(true)}>
+          <span className="font-bold text-brand-mainText">{likeCount}</span> Likes
         </div>
-        <div class="flex items-center gap-3">
-          <span class="cursor-pointer hover:underline" onClick={() => setShowComments(!showComments)}>{commentCount} Comments</span>
+        <div className="flex items-center gap-3">
+          <span className="cursor-pointer hover:underline" onClick={() => setShowComments(!showComments)}>{commentCount} Comments</span>
           <span>·</span>
           <span>{shareCount} Shares</span>
         </div>
@@ -452,53 +452,53 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
       </div>
 
       {showComments && (
-        <div class="space-y-4 pt-3 border-t border-dashed border-brand-border">
-          <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
+        <div className="space-y-4 pt-3 border-t border-dashed border-brand-border">
+          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
             {comments.length === 0 ? (
-              <p class="text-xs text-brand-mutedText italic text-center py-2">No comments yet.</p>
+              <p className="text-xs text-brand-mutedText italic text-center py-2">No comments yet.</p>
             ) : (
               comments.map((comment) => {
                 const commentIsOwner = currentUser?.uid === comment.authorId;
                 const commentTime = formatPostTime(comment.createdAt);
                 return (
-                  <div key={comment.id} class="flex items-start gap-2.5 group">
+                  <div key={comment.id} className="flex items-start gap-2.5 group">
                     <UserAvatar src={comment.authorPhotoURL} name={comment.authorDisplayName} size="w-8 h-8" />
-                    <div class="bg-brand-lavender p-3.5 rounded-2xl flex-1 text-xs space-y-1">
-                      <div class="flex items-center justify-between">
-                        <span class="font-bold text-brand-mainText">{comment.authorDisplayName}</span>
+                    <div className="bg-brand-lavender p-3.5 rounded-2xl flex-1 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-brand-mainText">{comment.authorDisplayName}</span>
                         {commentIsOwner && (
-                          <div class="flex items-center gap-2">
-                            <button onClick={() => { setEditingCommentId(comment.id); setEditCommentText(comment.text); }} class="text-brand-purple">Edit</button>
-                            <button onClick={() => handleDeleteCommentClick(comment.id)} class="text-red-500">Delete</button>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => { setEditingCommentId(comment.id); setEditCommentText(comment.text); }} className="text-brand-purple">Edit</button>
+                            <button onClick={() => handleDeleteCommentClick(comment.id)} className="text-red-500">Delete</button>
                           </div>
                         )}
                       </div>
                       {editingCommentId === comment.id ? (
-                        <div class="flex items-center gap-2 pt-1">
-                          <input type="text" value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} class="flex-1 bg-white border border-brand-purple rounded-full px-3 py-1 text-xs" />
-                          <button onClick={() => handleUpdateCommentSubmit(comment.id)} class="text-brand-purple font-bold">Save</button>
+                        <div className="flex items-center gap-2 pt-1">
+                          <input type="text" value={editCommentText} onChange={(e) => setEditCommentText(e.target.value)} className="flex-1 bg-brand-surface border border-brand-purple rounded-full px-3 py-1 text-xs" />
+                          <button onClick={() => handleUpdateCommentSubmit(comment.id)} className="text-brand-purple font-bold">Save</button>
                         </div>
                       ) : (
-                        <p class="text-brand-mainText leading-relaxed whitespace-pre-line">{comment.text}</p>
+                        <p className="text-brand-mainText leading-relaxed whitespace-pre-line">{comment.text}</p>
                       )}
-                      <div class="text-[0.65rem] text-brand-mutedText">{commentTime}</div>
+                      <div className="text-[0.65rem] text-brand-mutedText">{commentTime}</div>
                     </div>
                   </div>
                 );
               })
             )}
           </div>
-          <form onSubmit={handleAddCommentSubmit} class="flex items-center gap-2 pt-1">
+          <form onSubmit={handleAddCommentSubmit} className="flex items-center gap-2 pt-1">
             <input
               type="text"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               placeholder="Write a comment..."
               disabled={submittingComment}
-              class="flex-1 h-9 bg-brand-lavender rounded-full px-4 text-xs text-brand-mainText outline-none"
+              className="flex-1 h-9 bg-brand-lavender rounded-full px-4 text-xs text-brand-mainText outline-none"
             />
-            <button type="submit" disabled={submittingComment} class="w-9 h-9 rounded-full bg-brand-purple text-white flex items-center justify-center">
-              {submittingComment ? <Loader2 class="w-4 h-4 animate-spin" /> : <Send class="w-4 h-4" />}
+            <button type="submit" disabled={submittingComment} className="w-9 h-9 rounded-full bg-brand-purple text-white flex items-center justify-center">
+              {submittingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </form>
         </div>

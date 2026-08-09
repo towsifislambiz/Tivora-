@@ -39,30 +39,30 @@ export default function PostDetail({ postId, onBackToHome, onSelectProfileUserna
 
   if (loading) {
     return (
-      <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center animate-pulse space-y-4">
-        <div class="w-12 h-12 bg-brand-lavender rounded-full mx-auto" />
-        <div class="h-4 bg-brand-lavender rounded max-w-xs mx-auto" />
-        <div class="h-32 bg-brand-lavender rounded-2xl" />
+      <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center animate-pulse space-y-4">
+        <div className="w-12 h-12 bg-brand-lavender rounded-full mx-auto" />
+        <div className="h-4 bg-brand-lavender rounded max-w-xs mx-auto" />
+        <div className="h-32 bg-brand-lavender rounded-2xl" />
       </div>
     );
   }
 
   if (notFound || !post) {
     return (
-      <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center space-y-4">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 text-red-500">
-          <AlertCircle class="w-8 h-8" />
+      <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center space-y-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 text-red-500">
+          <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 class="text-2xl font-bold text-brand-mainText">Post Not Found</h2>
-        <p class="text-xs text-brand-mutedText max-w-sm mx-auto">
+        <h2 className="text-2xl font-bold text-brand-mainText">Post Not Found</h2>
+        <p className="text-xs text-brand-mutedText max-w-sm mx-auto">
           The post you are looking for does not exist or has been removed.
         </p>
-        <div class="pt-2">
+        <div className="pt-2">
           <button
             onClick={onBackToHome}
-            class="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform inline-flex items-center gap-2"
+            className="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform inline-flex items-center gap-2"
           >
-            <ArrowLeft class="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
             <span>Back to Feed</span>
           </button>
         </div>
@@ -71,13 +71,13 @@ export default function PostDetail({ postId, onBackToHome, onSelectProfileUserna
   }
 
   return (
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <button
           onClick={onBackToHome}
-          class="px-4 py-2 rounded-full bg-brand-surface border border-brand-border text-brand-mainText font-semibold text-xs hover:bg-brand-lavender transition-all inline-flex items-center gap-2 shadow-soft-xs"
+          className="px-4 py-2 rounded-full bg-brand-surface border border-brand-border text-brand-mainText font-semibold text-xs hover:bg-brand-lavender transition-all inline-flex items-center gap-2 shadow-soft-xs"
         >
-          <ArrowLeft class="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" />
           <span>Back to Feed</span>
         </button>
       </div>

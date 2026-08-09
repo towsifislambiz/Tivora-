@@ -79,50 +79,50 @@ export default function Groups({ setActiveScreen, onSelectGroupSlug, onShowToast
     : discoverGroups;
 
   return (
-    <div class="space-y-6">
+    <div className="space-y-6">
       {/* Header Banner */}
-      <div class="bg-brand-surface rounded-3xl p-6 border border-brand-border shadow-soft-sm space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-2xl bg-primary-gradient text-white flex items-center justify-center shadow-gradient-glow shrink-0">
-              <Users class="w-6 h-6" />
+      <div className="bg-brand-surface rounded-3xl p-6 border border-brand-border shadow-soft-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-primary-gradient text-white flex items-center justify-center shadow-gradient-glow shrink-0">
+              <Users className="w-6 h-6" />
             </div>
             <div>
-              <h2 class="text-xl font-bold text-brand-mainText">Communities & Groups</h2>
-              <p class="text-xs text-brand-mutedText mt-0.5">Discover and connect with tech, design, and developer communities</p>
+              <h2 className="text-xl font-bold text-brand-mainText">Communities & Groups</h2>
+              <p className="text-xs text-brand-mutedText mt-0.5">Discover and connect with tech, design, and developer communities</p>
             </div>
           </div>
 
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            class="px-5 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform flex items-center gap-1.5 self-start sm:self-auto"
+            className="px-5 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform flex items-center gap-1.5 self-start sm:self-auto"
           >
-            <Plus class="w-4 h-4" />
+            <Plus className="w-4 h-4" />
             <span>Create Group</span>
           </button>
         </div>
 
         {/* Group Search Bar */}
-        <div class="relative max-w-xl">
-          <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-mutedText pointer-events-none" />
+        <div className="relative max-w-xl">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-mutedText pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search groups by name or slug (e.g. web-developers)..."
-            class="w-full h-10 bg-brand-lavender border border-transparent focus:border-brand-purple focus:bg-white rounded-full pl-11 pr-10 text-xs sm:text-sm text-brand-mainText outline-none transition-all placeholder:text-brand-mutedText/70"
+            className="w-full h-10 bg-brand-lavender border border-transparent focus:border-brand-purple focus:bg-brand-surface rounded-full pl-11 pr-10 text-xs sm:text-sm text-brand-mainText outline-none transition-all placeholder:text-brand-mutedText/70"
           />
           {searching && (
-            <Loader2 class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-purple animate-spin" />
+            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-purple animate-spin" />
           )}
         </div>
 
         {/* Navigation Tabs */}
         {!searchQuery.trim() && (
-          <div class="flex items-center gap-2 pt-2 border-t border-brand-border">
+          <div className="flex items-center gap-2 pt-2 border-t border-brand-border">
             <button
               onClick={() => setActiveTab('my_groups')}
-              class={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
+              className={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
                 activeTab === 'my_groups'
                   ? 'bg-primary-gradient text-white shadow-gradient-glow'
                   : 'bg-brand-lavender text-brand-mutedText hover:text-brand-purple'
@@ -132,7 +132,7 @@ export default function Groups({ setActiveScreen, onSelectGroupSlug, onShowToast
             </button>
             <button
               onClick={() => setActiveTab('discover')}
-              class={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
+              className={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
                 activeTab === 'discover'
                   ? 'bg-primary-gradient text-white shadow-gradient-glow'
                   : 'bg-brand-lavender text-brand-mutedText hover:text-brand-purple'
@@ -146,49 +146,49 @@ export default function Groups({ setActiveScreen, onSelectGroupSlug, onShowToast
 
       {/* Group Cards Grid */}
       {loading ? (
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((n) => (
-            <div key={n} class="bg-brand-surface rounded-3xl p-4 border border-brand-border animate-pulse space-y-3">
-              <div class="h-28 bg-brand-lavender rounded-2xl" />
-              <div class="w-36 h-4 bg-brand-lavender rounded" />
-              <div class="w-24 h-3 bg-brand-lavender rounded" />
+            <div key={n} className="bg-brand-surface rounded-3xl p-4 border border-brand-border animate-pulse space-y-3">
+              <div className="h-28 bg-brand-lavender rounded-2xl" />
+              <div className="w-36 h-4 bg-brand-lavender rounded" />
+              <div className="w-24 h-3 bg-brand-lavender rounded" />
             </div>
           ))}
         </div>
       ) : displayList.length === 0 ? (
-        <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-3">
-          <div class="w-14 h-14 rounded-full bg-brand-lavender text-brand-purple flex items-center justify-center mx-auto mb-1">
-            <Users class="w-7 h-7" />
+        <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-brand-lavender text-brand-purple flex items-center justify-center mx-auto mb-1">
+            <Users className="w-7 h-7" />
           </div>
-          <h3 class="font-bold text-base text-brand-mainText">
+          <h3 className="font-bold text-base text-brand-mainText">
             {searchQuery.trim() ? "No matching groups found" : "No groups found"}
           </h3>
-          <p class="text-xs text-brand-mutedText max-w-xs mx-auto">
+          <p className="text-xs text-brand-mutedText max-w-xs mx-auto">
             {activeTab === 'my_groups' && !searchQuery.trim()
               ? "You haven't joined any groups yet. Switch to Discover or create one."
               : "Try searching with a different group name or slug."}
           </p>
         </div>
       ) : (
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {displayList.map((grp) => (
             <div
               key={grp.id}
               onClick={() => handleOpenGroup(grp.slug)}
-              class="bg-brand-surface rounded-3xl border border-brand-border shadow-soft-sm overflow-hidden hover:border-brand-purple/40 hover:shadow-soft-md transition-all cursor-pointer flex flex-col group"
+              className="bg-brand-surface rounded-3xl border border-brand-border shadow-soft-sm overflow-hidden hover:border-brand-purple/40 hover:shadow-soft-md transition-all cursor-pointer flex flex-col group"
             >
               {/* Cover & Avatar */}
-              <div class="h-28 relative bg-cover-gradient">
+              <div className="h-28 relative bg-cover-gradient">
                 {grp.coverPhotoURL ? (
-                  <img src={grp.coverPhotoURL} alt={grp.name} class="w-full h-full object-cover" />
+                  <img src={grp.coverPhotoURL} alt={grp.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div class="w-full h-full bg-cover-gradient opacity-90" />
+                  <div className="w-full h-full bg-cover-gradient opacity-90" />
                 )}
-                <div class="absolute -bottom-4 left-4">
+                <div className="absolute -bottom-4 left-4">
                   {grp.groupPhotoURL ? (
-                    <img src={grp.groupPhotoURL} alt={grp.name} class="w-12 h-12 rounded-xl border-2 border-white object-cover shadow-soft-xs" />
+                    <img src={grp.groupPhotoURL} alt={grp.name} className="w-12 h-12 rounded-xl border-2 border-brand-surface object-cover shadow-soft-xs" />
                   ) : (
-                    <div class="w-12 h-12 rounded-xl border-2 border-white bg-primary-gradient text-white flex items-center justify-center font-bold text-sm shadow-soft-xs">
+                    <div className="w-12 h-12 rounded-xl border-2 border-brand-surface bg-primary-gradient text-white flex items-center justify-center font-bold text-sm shadow-soft-xs">
                       {grp.name[0].toUpperCase()}
                     </div>
                   )}
@@ -196,29 +196,29 @@ export default function Groups({ setActiveScreen, onSelectGroupSlug, onShowToast
               </div>
 
               {/* Group Metadata */}
-              <div class="p-4 pt-6 flex-1 flex flex-col justify-between space-y-3">
-                <div class="space-y-1">
-                  <div class="flex items-center justify-between gap-1">
-                    <h4 class="font-bold text-sm text-brand-mainText group-hover:text-brand-purple transition-colors truncate">
+              <div className="p-4 pt-6 flex-1 flex flex-col justify-between space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <h4 className="font-bold text-sm text-brand-mainText group-hover:text-brand-purple transition-colors truncate">
                       {grp.name}
                     </h4>
-                    <span class={`px-2 py-0.5 rounded-full text-[0.65rem] font-bold flex items-center gap-1 shrink-0 ${
+                    <span className={`px-2 py-0.5 rounded-full text-[0.65rem] font-bold flex items-center gap-1 shrink-0 ${
                       grp.privacy === 'private' ? 'bg-amber-100 text-amber-700' : 'bg-brand-purple/10 text-brand-purple'
                     }`}>
-                      {grp.privacy === 'private' ? <Lock class="w-2.5 h-2.5" /> : <Globe class="w-2.5 h-2.5" />}
+                      {grp.privacy === 'private' ? <Lock className="w-2.5 h-2.5" /> : <Globe className="w-2.5 h-2.5" />}
                       <span>{grp.privacy === 'private' ? 'Private' : 'Public'}</span>
                     </span>
                   </div>
 
-                  <p class="text-[0.7rem] font-bold text-brand-purple">/groups/{grp.slug}</p>
-                  <p class="text-xs text-brand-mutedText line-clamp-2 leading-relaxed">{grp.description || "Community group"}</p>
+                  <p className="text-[0.7rem] font-bold text-brand-purple">/groups/{grp.slug}</p>
+                  <p className="text-xs text-brand-mutedText line-clamp-2 leading-relaxed">{grp.description || "Community group"}</p>
                 </div>
 
-                <div class="flex items-center justify-between pt-2 border-t border-brand-border text-xs text-brand-mutedText">
+                <div className="flex items-center justify-between pt-2 border-t border-brand-border text-xs text-brand-mutedText">
                   <span>{grp.memberCount || 1} members</span>
-                  <span class="font-bold text-brand-purple flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  <span className="font-bold text-brand-purple flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                     <span>View</span>
-                    <ArrowRight class="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </span>
                 </div>
               </div>

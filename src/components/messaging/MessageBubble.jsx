@@ -109,7 +109,7 @@ export default function MessageBubble({
         {showMenu && !message.isDeleted && (
           <div 
             ref={menuRef}
-            className={`absolute ${isOwn ? 'right-0' : 'left-0'} top-8 z-30 w-36 bg-white rounded-2xl border border-brand-border shadow-soft-lg py-1.5 text-xs animate-in fade-in zoom-in-95 duration-150`}
+            className={`absolute ${isOwn ? 'right-0' : 'left-0'} top-8 z-30 w-36 bg-brand-surface rounded-2xl border border-brand-border shadow-soft-lg py-1.5 text-xs animate-in fade-in zoom-in-95 duration-150`}
           >
             {isOwn && (
               <button
@@ -148,7 +148,7 @@ export default function MessageBubble({
               ? 'bg-brand-lavender/50 text-brand-mutedText italic border border-brand-border'
               : isOwn
               ? 'bg-primary-gradient text-white rounded-br-xs font-medium'
-              : 'bg-white border border-brand-border/80 text-brand-mainText rounded-bl-xs'
+              : 'bg-brand-surface border border-brand-border/80 text-brand-mainText rounded-bl-xs'
           }`}
         >
           {isEditing ? (
@@ -157,7 +157,7 @@ export default function MessageBubble({
                 type="text"
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
-                className="w-full bg-white border border-brand-purple rounded-xl px-3 py-1.5 text-xs outline-none"
+                className="w-full bg-brand-surface border border-brand-purple rounded-xl px-3 py-1.5 text-xs outline-none"
                 autoFocus
               />
               <div className="flex items-center gap-2 justify-end">
@@ -202,7 +202,7 @@ export default function MessageBubble({
                   src={partner?.photoURL}
                   name={partner?.displayName}
                   size="w-3.5 h-3.5"
-                  className="border border-white shadow-soft-xs ring-1 ring-brand-purple/30"
+                  className="border border-brand-surface shadow-soft-xs ring-1 ring-brand-purple/30"
                 />
               </div>
             ) : (
@@ -285,7 +285,7 @@ function VoiceNotePlayer({ audioUrl, duration: initialDuration, isOwn }) {
       <button
         onClick={togglePlay}
         className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-soft-xs transition-transform active:scale-95 ${
-          isOwn ? 'bg-white text-brand-purple hover:bg-white/90' : 'bg-primary-gradient text-white hover:opacity-90'
+          isOwn ? 'bg-brand-surface text-brand-purple hover:bg-white/90' : 'bg-primary-gradient text-white hover:opacity-90'
         }`}
         aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
       >

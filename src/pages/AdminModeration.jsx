@@ -61,10 +61,10 @@ export default function AdminModeration({ onShowToast }) {
 
   if (!isAdmin) {
     return (
-      <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-3">
-        <AlertCircle class="w-12 h-12 text-red-500 mx-auto" />
-        <h3 class="font-bold text-lg text-brand-mainText">Access Denied</h3>
-        <p class="text-xs text-brand-mutedText max-w-xs mx-auto">
+      <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-3">
+        <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+        <h3 className="font-bold text-lg text-brand-mainText">Access Denied</h3>
+        <p className="text-xs text-brand-mutedText max-w-xs mx-auto">
           You do not have administrative permissions to view platform moderation.
         </p>
       </div>
@@ -72,65 +72,65 @@ export default function AdminModeration({ onShowToast }) {
   }
 
   return (
-    <div class="space-y-6">
+    <div className="space-y-6">
       {/* Header Banner */}
-      <div class="bg-brand-surface rounded-3xl p-6 border border-brand-border shadow-soft-sm flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-2xl bg-primary-gradient text-white flex items-center justify-center shadow-gradient-glow shrink-0">
-            <ShieldCheck class="w-6 h-6" />
+      <div className="bg-brand-surface rounded-3xl p-6 border border-brand-border shadow-soft-sm flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-primary-gradient text-white flex items-center justify-center shadow-gradient-glow shrink-0">
+            <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <h2 class="text-xl font-bold text-brand-mainText">Platform Admin Moderation</h2>
-            <p class="text-xs text-brand-mutedText mt-0.5">Review reported content, users, and safety flags</p>
+            <h2 className="text-xl font-bold text-brand-mainText">Platform Admin Moderation</h2>
+            <p className="text-xs text-brand-mutedText mt-0.5">Review reported content, users, and safety flags</p>
           </div>
         </div>
       </div>
 
       {/* Reports List */}
       {loading ? (
-        <div class="flex justify-center py-16">
-          <Loader2 class="w-7 h-7 text-brand-purple animate-spin" />
+        <div className="flex justify-center py-16">
+          <Loader2 className="w-7 h-7 text-brand-purple animate-spin" />
         </div>
       ) : reports.length === 0 ? (
-        <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-2">
-          <CheckCircle class="w-12 h-12 text-emerald-500 mx-auto" />
-          <h3 class="font-bold text-base text-brand-mainText">All caught up!</h3>
-          <p class="text-xs text-brand-mutedText">There are no pending reports requiring moderation right now.</p>
+        <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-2">
+          <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
+          <h3 className="font-bold text-base text-brand-mainText">All caught up!</h3>
+          <p className="text-xs text-brand-mutedText">There are no pending reports requiring moderation right now.</p>
         </div>
       ) : (
-        <div class="space-y-4">
+        <div className="space-y-4">
           {reports.map((r) => (
-            <div key={r.id} class="bg-brand-surface rounded-2xl border border-brand-border p-5 shadow-soft-sm space-y-3">
-              <div class="flex items-center justify-between border-b border-brand-border pb-2">
-                <div class="flex items-center gap-2">
-                  <Flag class="w-4 h-4 text-red-500" />
-                  <span class="font-bold text-xs capitalize text-brand-mainText">
-                    Reported {r.targetType}: <span class="text-brand-purple">{r.targetId}</span>
+            <div key={r.id} className="bg-brand-surface rounded-2xl border border-brand-border p-5 shadow-soft-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-brand-border pb-2">
+                <div className="flex items-center gap-2">
+                  <Flag className="w-4 h-4 text-red-500" />
+                  <span className="font-bold text-xs capitalize text-brand-mainText">
+                    Reported {r.targetType}: <span className="text-brand-purple">{r.targetId}</span>
                   </span>
                 </div>
-                <span class="text-[0.68rem] text-brand-mutedText">{formatPostTime(r.createdAt)}</span>
+                <span className="text-[0.68rem] text-brand-mutedText">{formatPostTime(r.createdAt)}</span>
               </div>
 
-              <div class="space-y-1 text-xs text-brand-mainText">
-                <p><span class="font-bold">Reason:</span> <span class="text-red-600 font-semibold">{r.reason}</span></p>
-                {r.description && <p><span class="font-bold">Details:</span> {r.description}</p>}
-                <p class="text-brand-mutedText"><span class="font-bold text-brand-mainText">Reporter ID:</span> {r.reporterId}</p>
+              <div className="space-y-1 text-xs text-brand-mainText">
+                <p><span className="font-bold">Reason:</span> <span className="text-red-600 font-semibold">{r.reason}</span></p>
+                {r.description && <p><span className="font-bold">Details:</span> {r.description}</p>}
+                <p className="text-brand-mutedText"><span className="font-bold text-brand-mainText">Reporter ID:</span> {r.reporterId}</p>
               </div>
 
-              <div class="pt-2 border-t border-brand-border flex items-center justify-end gap-2">
+              <div className="pt-2 border-t border-brand-border flex items-center justify-end gap-2">
                 <button
                   onClick={() => handleDismiss(r.id)}
                   disabled={processingId === r.id}
-                  class="px-4 py-1.5 rounded-full border border-brand-border text-brand-mutedText font-semibold text-xs hover:bg-brand-lavender transition-all"
+                  className="px-4 py-1.5 rounded-full border border-brand-border text-brand-mutedText font-semibold text-xs hover:bg-brand-lavender transition-all"
                 >
                   Dismiss
                 </button>
                 <button
                   onClick={() => handleResolve(r.id)}
                   disabled={processingId === r.id}
-                  class="px-4 py-1.5 rounded-full bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 shadow-soft-xs transition-all flex items-center gap-1"
+                  className="px-4 py-1.5 rounded-full bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 shadow-soft-xs transition-all flex items-center gap-1"
                 >
-                  <CheckCircle class="w-3.5 h-3.5" />
+                  <CheckCircle className="w-3.5 h-3.5" />
                   <span>Resolve</span>
                 </button>
               </div>

@@ -468,7 +468,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
       style={viewportHeight ? { height: viewportHeight } : {}}
     >
       {/* ── 1. FIXED CHAT HEADER ── */}
-      <div className="px-4 py-3 border-b border-brand-border bg-white flex items-center justify-between shrink-0 gap-3 min-w-0 shadow-soft-xs z-20">
+      <div className="px-4 py-3 border-b border-brand-border bg-brand-surface flex items-center justify-between shrink-0 gap-3 min-w-0 shadow-soft-xs z-20">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           {onBack && (
             <button
@@ -491,7 +491,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
                 size="w-10 h-10"
                 className="border-2 border-brand-lavender group-hover:scale-105 transition-transform"
               />
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full shadow-sm" />
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-brand-surface rounded-full shadow-sm" />
             </div>
 
             <div className="min-w-0 flex-1">
@@ -578,9 +578,9 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
               src={partner.photoURL}
               name={partner.displayName}
               size="w-7 h-7"
-              className="border border-white shadow-soft-xs shrink-0"
+              className="border border-brand-surface shadow-soft-xs shrink-0"
             />
-            <div className="bg-white border border-brand-border/80 rounded-2xl rounded-bl-xs px-3.5 py-2 shadow-soft-xs flex items-center gap-1.5">
+            <div className="bg-brand-surface border border-brand-border/80 rounded-2xl rounded-bl-xs px-3.5 py-2 shadow-soft-xs flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-purple animate-bounce [animation-delay:-0.3s]" />
               <span className="w-1.5 h-1.5 rounded-full bg-brand-purple animate-bounce [animation-delay:-0.15s]" />
               <span className="w-1.5 h-1.5 rounded-full bg-brand-purple animate-bounce" />
@@ -673,7 +673,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
           </div>
         ) : (
           /* Floating White Rounded Capsule Card */
-          <div className="bg-white rounded-[28px] p-2 sm:p-2.5 border border-brand-border/70 shadow-soft-md flex items-center gap-2 min-w-0 w-full">
+          <div className="bg-brand-surface rounded-[28px] p-2 sm:p-2.5 border border-brand-border/70 shadow-soft-md flex items-center gap-2 min-w-0 w-full">
             {/* Emoji Trigger Button on Left */}
             <button
               type="button"
@@ -690,7 +690,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
             </button>
 
             {/* Input Pill Container with Auto-Expanding Multi-line Textarea */}
-            <form onSubmit={handleSendSubmit} className="flex-1 flex items-center bg-brand-lavender/50 border border-brand-purple/30 focus-within:border-brand-purple focus-within:bg-white rounded-2xl sm:rounded-3xl transition-all px-3.5 gap-2 min-h-[40px] sm:min-h-[44px] max-h-36 min-w-0 overflow-hidden">
+            <form onSubmit={handleSendSubmit} className="flex-1 flex items-center bg-brand-lavender/50 border border-brand-purple/30 focus-within:border-brand-purple focus-within:bg-brand-surface rounded-2xl sm:rounded-3xl transition-all px-3.5 gap-2 min-h-[40px] sm:min-h-[44px] max-h-36 min-w-0 overflow-hidden">
               <textarea
                 ref={inputRef}
                 value={text}

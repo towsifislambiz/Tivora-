@@ -76,20 +76,20 @@ export default function Profile({ targetUsername, onBackToHome, onSelectProfileU
 
   if (notFound || (!profileData && !loadingProfile)) {
     return (
-      <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center space-y-4">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 text-red-500">
-          <AlertCircle class="w-8 h-8" />
+      <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center space-y-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 text-red-500">
+          <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 class="text-2xl font-bold text-brand-mainText">Profile Not Found</h2>
-        <p class="text-xs text-brand-mutedText max-w-sm mx-auto">
+        <h2 className="text-2xl font-bold text-brand-mainText">Profile Not Found</h2>
+        <p className="text-xs text-brand-mutedText max-w-sm mx-auto">
           We couldn't find a Tivora user with username <strong>@{targetUsername || 'user'}</strong>.
         </p>
-        <div class="pt-2">
+        <div className="pt-2">
           <button
             onClick={onBackToHome}
-            class="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform inline-flex items-center gap-2"
+            className="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform inline-flex items-center gap-2"
           >
-            <ArrowLeft class="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
             <span>Back to Home</span>
           </button>
         </div>
@@ -98,7 +98,7 @@ export default function Profile({ targetUsername, onBackToHome, onSelectProfileU
   }
 
   return (
-    <div class="space-y-6">
+    <div className="space-y-6">
       {/* Profile Header */}
       <ProfileHeader
         profile={profileData}

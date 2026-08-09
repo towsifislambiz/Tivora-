@@ -140,17 +140,17 @@ export default function Messages({ onSelectProfileUsername, onShowToast }) {
     <div className="h-full min-h-0 md:h-[calc(100vh-140px)] w-full bg-brand-surface rounded-none md:rounded-3xl border-0 md:border border-brand-border shadow-none md:shadow-soft-sm overflow-hidden flex flex-col md:flex-row">
       
       {/* ── LEFT PANEL: Conversation List ── */}
-      <div class={`flex flex-col border-r border-brand-border bg-brand-surface shrink-0 ${
+      <div className={`flex flex-col border-r border-brand-border bg-brand-surface shrink-0 ${
         mobileView === 'chat' ? 'hidden md:flex' : 'flex'
       } w-full md:w-[300px] lg:w-[340px]`}>
 
         {/* Left Panel Header */}
-        <div class="px-5 pt-5 pb-3 space-y-3">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-bold text-brand-mainText flex items-center gap-2">
+        <div className="px-5 pt-5 pb-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-brand-mainText flex items-center gap-2">
               <span>Messenger</span>
               {conversations.filter(c => c.isUnread).length > 0 && (
-                <span class="px-2 py-0.5 rounded-full bg-brand-pink text-white text-[0.68rem] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-brand-pink text-white text-[0.68rem] font-bold">
                   {conversations.filter(c => c.isUnread).length}
                 </span>
               )}
@@ -158,20 +158,20 @@ export default function Messages({ onSelectProfileUsername, onShowToast }) {
           </div>
 
           {/* Search within chats */}
-          <div class="relative">
-            <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-mutedText pointer-events-none" />
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand-mutedText pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search conversations..."
-              class="w-full h-9 bg-brand-lavender border border-transparent focus:border-brand-purple rounded-full pl-9 pr-4 text-xs text-brand-mainText outline-none transition-all placeholder:text-brand-mutedText/70"
+              className="w-full h-9 bg-brand-lavender border border-transparent focus:border-brand-purple rounded-full pl-9 pr-4 text-xs text-brand-mainText outline-none transition-all placeholder:text-brand-mutedText/70"
             />
           </div>
         </div>
 
         {/* Conversation Items */}
-        <div class="flex-1 overflow-y-auto px-2 pb-3">
+        <div className="flex-1 overflow-y-auto px-2 pb-3">
           <ConversationList
             conversations={filteredConvs}
             selectedId={activeConversation?.id}
@@ -191,16 +191,16 @@ export default function Messages({ onSelectProfileUsername, onShowToast }) {
             onShowToast={onShowToast}
           />
         ) : (
-          <div class="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-4 bg-gradient-to-br from-brand-bg via-brand-surface to-brand-lavender/20">
-            <div class="w-24 h-24 rounded-3xl bg-primary-gradient text-white flex items-center justify-center shadow-gradient-glow mb-2">
-              <MessageSquare class="w-12 h-12" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-4 bg-gradient-to-br from-brand-bg via-brand-surface to-brand-lavender/20">
+            <div className="w-24 h-24 rounded-3xl bg-primary-gradient text-white flex items-center justify-center shadow-gradient-glow mb-2">
+              <MessageSquare className="w-12 h-12" />
             </div>
-            <h3 class="text-2xl font-bold text-brand-mainText">Your Messages</h3>
-            <p class="text-sm text-brand-mutedText max-w-xs leading-relaxed">
+            <h3 className="text-2xl font-bold text-brand-mainText">Your Messages</h3>
+            <p className="text-sm text-brand-mutedText max-w-xs leading-relaxed">
               Select a friend from the left panel to start a private real-time conversation.
             </p>
             {conversations.length === 0 && !loading && (
-              <p class="text-xs text-brand-mutedText/70 bg-brand-lavender/60 px-4 py-2 rounded-full mt-2">
+              <p className="text-xs text-brand-mutedText/70 bg-brand-lavender/60 px-4 py-2 rounded-full mt-2">
                 Add friends to start messaging 🤝
               </p>
             )}

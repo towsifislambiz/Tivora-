@@ -5,8 +5,8 @@
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#F7F8FF",
-  "theme_color": "#6C5CE7",
+  "background_color": "#FAFAFA",
+  "theme_color": "#0095F6",
   "categories": ["social", "communication", "community"],
   "lang": "en",
   "icons": [

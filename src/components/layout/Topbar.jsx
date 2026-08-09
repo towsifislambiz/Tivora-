@@ -4,15 +4,14 @@ import { Search, Plus, MessageSquare, Bell, LogOut, User, Settings, RefreshCw, A
 import { useAuth } from '../../hooks/useAuth';
 import { getUserByUsername } from '../../firebase/profileService';
 import { normalizeUsername } from '../../utils/usernameValidator';
-import { 
-  subscribeToUserNotifications, 
-  markNotificationAsRead, 
-  markAllNotificationsAsRead 
+import {
+  markNotificationAsRead,
+  markAllNotificationsAsRead
 } from '../../firebase/notificationService';
-import { subscribeToUserConversations } from '../../firebase/messageService';
-import { getFriends } from '../../firebase/friendService';
+import { useRealtime } from '../../hooks/useRealtime';
 import UserSearchResult from '../search/UserSearchResult';
 import NotificationItem from '../notifications/NotificationItem';
+import ThemeToggle from '../ui/ThemeToggle';
 import { formatPostTime } from '../feed/PostCard';
 
 export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectProfileUsername, onSelectPostId, onShowToast }) {
@@ -29,11 +28,17 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
   const [searchStatus, setSearchStatus] = useState('');
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
-  // Real-time Notifications & Messages State
-  const [notifications, setNotifications] = useState([]);
-  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
-  const [recentConversations, setRecentConversations] = useState([]);
+  // Live badge data comes from the shared RealtimeProvider — see
+  // src/context/RealtimeContext.jsx. Subscribing here as well would reopen
+  // the duplicate Firestore channels this was consolidated to remove.
+  const {
+    notifications,
+    unreadNotifCount,
+    unreadMsgCount,
+    recentConversations,
+    markNotificationRead,
+    markAllNotificationsRead,
+  } = useRealtime();
 
   const menuRef = useRef(null);
   const searchRef = useRef(null);
@@ -44,54 +49,6 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
   const email = currentUser?.email || userDoc?.email || 'user@example.com';
   const avatar = currentUser?.photoURL || userDoc?.photoURL || null;
   const isAdmin = userDoc?.role === 'admin' || userDoc?.role === 'owner' || userDoc?.email === 'demo@tivora.app';
-
-  // Real-time Notification & Conversations Subscription (with confirmed friends merged)
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-
-    let isMounted = true;
-    let unsubscribeMsgs = () => {};
-
-    const unsubscribeNotifs = subscribeToUserNotifications(currentUser.uid, ({ notifications: fetchedNotifs, unreadCount: count }) => {
-      if (isMounted) {
-        setNotifications(fetchedNotifs);
-        setUnreadNotifCount(count);
-      }
-    });
-
-    async function loadConvsAndFriends() {
-      const { friends } = await getFriends(currentUser.uid, 50);
-
-      unsubscribeMsgs = subscribeToUserConversations(currentUser.uid, ({ conversations: fetchedConvs, totalUnread }) => {
-        if (!isMounted) return;
-
-        const existingPartnerUids = new Set(fetchedConvs.map(c => c.partner?.uid).filter(Boolean));
-
-        const friendItems = (friends || [])
-          .filter(f => f.uid !== currentUser.uid && !existingPartnerUids.has(f.uid))
-          .map(f => ({
-            id: `friend_${f.uid}`,
-            partner: f,
-            lastMessage: "Start a conversation 👋",
-            lastMessageAt: f.acceptedAt || new Date().toISOString(),
-            isUnread: false,
-            isSynthetic: true
-          }));
-
-        const mergedList = [...fetchedConvs, ...friendItems];
-        setRecentConversations(mergedList);
-        setUnreadMsgCount(totalUnread);
-      });
-    }
-
-    loadConvsAndFriends();
-
-    return () => {
-      isMounted = false;
-      unsubscribeNotifs();
-      unsubscribeMsgs();
-    };
-  }, [currentUser?.uid]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -168,7 +125,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
 
     if (!notif.isRead && currentUser?.uid) {
       markNotificationAsRead(notif.id, currentUser.uid);
-      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+      markNotificationRead(notif.id);
     }
 
     if (notif.type === 'message' || notif.type === 'chat') {
@@ -186,8 +143,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
     if (!currentUser?.uid) return;
     try {
       await markAllNotificationsAsRead(currentUser.uid);
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      setUnreadNotifCount(0);
+      markAllNotificationsRead();
       if (onShowToast) onShowToast("All notifications marked as read! 🔔");
     } catch (err) {
       if (onShowToast) onShowToast("Failed to mark notifications read.");
@@ -203,7 +159,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
   if (isMobileChatActive) {
     // Hide topbar on mobile during active chat for 100% full bleed Messenger experience
     return (
-      <header className="hidden sm:flex h-16 bg-white/95 backdrop-blur-xl border-b border-brand-border sticky top-0 z-40 px-4 lg:px-8 items-center justify-between shadow-soft-xs" role="banner">
+      <header className="hidden sm:flex h-16 glass-bar sticky top-0 z-40 px-4 lg:px-8 items-center justify-between shadow-soft-xs" role="banner">
         {/* Search Bar */}
         <form onSubmit={handleSearchSubmit} className="relative hidden sm:block w-72 md:w-96" ref={searchRef}>
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-mutedText pointer-events-none" />
@@ -212,7 +168,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search people, groups, posts..."
-            className="w-full h-10 bg-brand-lavender border border-transparent focus:border-brand-purple focus:bg-white rounded-full pl-11 pr-10 text-xs sm:text-sm text-brand-mainText outline-none transition-all placeholder:text-brand-mutedText/70"
+            className="w-full h-10 bg-brand-lavender border border-transparent focus:border-brand-purple focus:bg-brand-surface rounded-full pl-11 pr-10 text-xs sm:text-sm text-brand-mainText outline-none transition-all placeholder:text-brand-mutedText/70"
           />
           {searching && (
             <RefreshCw className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-purple animate-spin" />
@@ -233,7 +189,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
   }
 
   return (
-    <header className="h-16 bg-white/95 backdrop-blur-xl border-b border-brand-border sticky top-0 z-40 px-4 lg:px-8 flex items-center justify-between shadow-soft-xs pt-safe" role="banner">
+    <header className="h-16 glass-bar sticky top-0 z-40 px-4 lg:px-8 flex items-center justify-between shadow-soft-xs pt-safe" role="banner">
       {/* Mobile Search Trigger Button (sm:hidden) */}
       <button
         onClick={() => setIsMobileSearchOpen(true)}
@@ -251,7 +207,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search people, groups, posts (press Enter)..."
-          className="w-full h-10 bg-brand-lavender border border-transparent focus:border-brand-purple focus:bg-white rounded-full pl-11 pr-10 text-xs sm:text-sm text-brand-mainText outline-none transition-all placeholder:text-brand-mutedText/70"
+          className="w-full h-10 bg-brand-lavender border border-transparent focus:border-brand-purple focus:bg-brand-surface rounded-full pl-11 pr-10 text-xs sm:text-sm text-brand-mainText outline-none transition-all placeholder:text-brand-mutedText/70"
         />
         {searching && (
           <RefreshCw className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-purple animate-spin" />
@@ -290,6 +246,9 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
 
       {/* Topbar Actions Toolbar */}
       <div className="flex items-center gap-3">
+        {/* Light / System / Dark */}
+        <ThemeToggle variant="icon" />
+
         {/* Create Post Button */}
         <button
           onClick={onOpenCreateModal}
@@ -309,7 +268,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
           >
             <MessageSquare className="w-4 h-4" />
             {unreadMsgCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-brand-pink text-white text-[0.65rem] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+              <span className="absolute -top-1 -right-1 bg-brand-pink text-white text-[0.65rem] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-brand-surface animate-pulse">
                 {unreadMsgCount > 9 ? '9+' : unreadMsgCount}
               </span>
             )}
@@ -409,7 +368,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
           >
             <Bell className="w-4 h-4" />
             {unreadNotifCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-brand-pink text-white text-[0.65rem] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+              <span className="absolute -top-1 -right-1 bg-brand-pink text-white text-[0.65rem] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-brand-surface animate-pulse">
                 {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
               </span>
             )}
@@ -559,7 +518,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search Tivora..."
-                className="w-full h-11 bg-white border border-brand-purple rounded-full pl-4 pr-10 text-sm outline-none shadow-soft-xs"
+                className="w-full h-11 bg-brand-surface border border-brand-purple rounded-full pl-4 pr-10 text-sm outline-none shadow-soft-xs"
                 autoFocus
               />
               {searching && (
@@ -594,7 +553,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
                   window.location.hash = `#search?q=${encodeURIComponent(searchQuery.trim())}`;
                   if (setActiveScreen) setActiveScreen('search_results');
                 }}
-                className="w-full p-4 rounded-2xl bg-white border border-brand-border font-bold text-xs text-brand-purple flex items-center justify-between shadow-soft-xs"
+                className="w-full p-4 rounded-2xl bg-brand-surface border border-brand-border font-bold text-xs text-brand-purple flex items-center justify-between shadow-soft-xs"
               >
                 <span>Search all results for "{searchQuery}"</span>
                 <Search className="w-4 h-4" />

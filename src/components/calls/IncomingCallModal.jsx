@@ -30,7 +30,7 @@ export default function IncomingCallModal() {
             src={callerAvatar}
             name={callerName}
             size="w-24 h-24"
-            className="relative border-4 border-white shadow-soft-lg"
+            className="relative border-4 border-brand-surface shadow-soft-lg"
           />
         </div>
 

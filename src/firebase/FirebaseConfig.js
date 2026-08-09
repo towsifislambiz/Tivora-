@@ -1,6 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -15,7 +20,33 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+/**
+ * Firestore with an IndexedDB-backed local cache.
+ *
+ * Without this every query is a network round-trip (~335ms measured), so each
+ * screen change showed a spinner even for data already fetched a moment
+ * earlier. With persistence, repeat reads resolve from disk immediately and
+ * onSnapshot fires cached results first, then reconciles with the server — so
+ * navigation renders instantly and updates in place.
+ *
+ * persistentMultipleTabManager keeps several open tabs sharing one cache
+ * instead of the older behaviour where only the first tab got persistence.
+ */
+function createDb() {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (err) {
+    // Private browsing, disabled storage, or an already-initialised instance
+    // (e.g. HMR re-running this module). Memory cache still works.
+    console.warn("Firestore persistent cache unavailable, using memory cache:", err?.message);
+    return getFirestore(app);
+  }
+}
+
+export const db = createDb();
 export const storage = getStorage(app);
 
 export default app;

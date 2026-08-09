@@ -211,20 +211,20 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
 
   if (loadingGroup) {
     return (
-      <div class="flex flex-col items-center justify-center py-20 space-y-3">
-        <Loader2 class="w-8 h-8 text-brand-purple animate-spin" />
-        <p class="text-xs text-brand-mutedText font-semibold">Loading community group...</p>
+      <div className="flex flex-col items-center justify-center py-20 space-y-3">
+        <Loader2 className="w-8 h-8 text-brand-purple animate-spin" />
+        <p className="text-xs text-brand-mutedText font-semibold">Loading community group...</p>
       </div>
     );
   }
 
   if (!group) {
     return (
-      <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-3">
-        <h3 class="font-bold text-lg text-brand-mainText">Group Not Found</h3>
-        <p class="text-xs text-brand-mutedText">The group you're looking for doesn't exist or may have been removed.</p>
+      <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-3">
+        <h3 className="font-bold text-lg text-brand-mainText">Group Not Found</h3>
+        <p className="text-xs text-brand-mutedText">The group you're looking for doesn't exist or may have been removed.</p>
         {onBack && (
-          <button onClick={onBack} class="px-5 py-2 rounded-full bg-brand-lavender text-brand-purple font-bold text-xs">
+          <button onClick={onBack} className="px-5 py-2 rounded-full bg-brand-lavender text-brand-purple font-bold text-xs">
             Back to Groups
           </button>
         )}
@@ -233,49 +233,49 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
   }
 
   return (
-    <div class="space-y-6">
+    <div className="space-y-6">
       {/* Back Toolbar */}
       {onBack && (
         <button
           onClick={onBack}
-          class="inline-flex items-center gap-2 text-xs font-bold text-brand-purple hover:underline"
+          className="inline-flex items-center gap-2 text-xs font-bold text-brand-purple hover:underline"
         >
-          <ArrowLeft class="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" />
           <span>Back to Groups</span>
         </button>
       )}
 
       {/* Group Header Banner */}
-      <div class="bg-brand-surface rounded-3xl border border-brand-border shadow-soft-sm overflow-hidden">
-        <div class="h-44 sm:h-56 relative bg-cover-gradient">
+      <div className="bg-brand-surface rounded-3xl border border-brand-border shadow-soft-sm overflow-hidden">
+        <div className="h-44 sm:h-56 relative bg-cover-gradient">
           {group.coverPhotoURL ? (
-            <img src={group.coverPhotoURL} alt={group.name} class="w-full h-full object-cover" />
+            <img src={group.coverPhotoURL} alt={group.name} className="w-full h-full object-cover" />
           ) : (
-            <div class="w-full h-full bg-cover-gradient opacity-90" />
+            <div className="w-full h-full bg-cover-gradient opacity-90" />
           )}
         </div>
 
-        <div class="px-6 sm:px-8 pb-6 relative">
-          <div class="flex flex-col sm:flex-row sm:items-end justify-between -mt-14 sm:-mt-16 mb-4 gap-4">
-            <div class="relative">
+        <div className="px-6 sm:px-8 pb-6 relative">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between -mt-14 sm:-mt-16 mb-4 gap-4">
+            <div className="relative">
               {group.groupPhotoURL ? (
-                <img src={group.groupPhotoURL} alt={group.name} class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-white object-cover shadow-soft-md" />
+                <img src={group.groupPhotoURL} alt={group.name} className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-brand-surface object-cover shadow-soft-md" />
               ) : (
-                <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-white bg-primary-gradient text-white flex items-center justify-center font-bold text-2xl shadow-soft-md">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-brand-surface bg-primary-gradient text-white flex items-center justify-center font-bold text-2xl shadow-soft-md">
                   {group.name[0].toUpperCase()}
                 </div>
               )}
             </div>
 
             {/* Dynamic Membership Action Buttons */}
-            <div class="flex items-center gap-3">
+            <div className="flex items-center gap-3">
               {myRole === 'none' && group.privacy === 'public' && (
                 <button
                   onClick={handleJoinClick}
                   disabled={pendingAction}
-                  class="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-sm shadow-gradient-glow hover:scale-105 transition-transform flex items-center gap-1.5"
+                  className="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-sm shadow-gradient-glow hover:scale-105 transition-transform flex items-center gap-1.5"
                 >
-                  {pendingAction ? <Loader2 class="w-4 h-4 animate-spin" /> : <UserPlus class="w-4 h-4" />}
+                  {pendingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                   <span>Join Group</span>
                 </button>
               )}
@@ -284,22 +284,22 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
                 <button
                   onClick={handleRequestClick}
                   disabled={pendingAction}
-                  class="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-sm shadow-gradient-glow hover:scale-105 transition-transform flex items-center gap-1.5"
+                  className="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-sm shadow-gradient-glow hover:scale-105 transition-transform flex items-center gap-1.5"
                 >
-                  {pendingAction ? <Loader2 class="w-4 h-4 animate-spin" /> : <UserPlus class="w-4 h-4" />}
+                  {pendingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                   <span>Request to Join</span>
                 </button>
               )}
 
               {myRole === 'pending' && (
-                <div class="flex items-center gap-2">
-                  <span class="px-4 py-2 rounded-full bg-brand-lavender text-brand-purple font-semibold text-xs border border-brand-purple/20">
+                <div className="flex items-center gap-2">
+                  <span className="px-4 py-2 rounded-full bg-brand-lavender text-brand-purple font-semibold text-xs border border-brand-purple/20">
                     Request Sent
                   </span>
                   <button
                     onClick={handleCancelRequestClick}
                     disabled={pendingAction}
-                    class="px-4 py-2 rounded-full border border-red-200 text-red-600 font-semibold text-xs hover:bg-red-50"
+                    className="px-4 py-2 rounded-full border border-red-200 text-red-600 font-semibold text-xs hover:bg-red-50"
                   >
                     Cancel
                   </button>
@@ -307,9 +307,9 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
               )}
 
               {isMember && (
-                <div class="flex items-center gap-2">
-                  <span class="px-4 py-2 rounded-full bg-emerald-50 text-emerald-600 font-bold text-xs border border-emerald-200 flex items-center gap-1">
-                    <UserCheck class="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2">
+                  <span className="px-4 py-2 rounded-full bg-emerald-50 text-emerald-600 font-bold text-xs border border-emerald-200 flex items-center gap-1">
+                    <UserCheck className="w-3.5 h-3.5" />
                     <span>Joined ({myRole})</span>
                   </span>
 
@@ -317,7 +317,7 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
                     <button
                       onClick={handleLeaveGroupClick}
                       disabled={pendingAction}
-                      class="px-4 py-2 rounded-full border border-brand-border text-brand-mutedText hover:text-red-600 hover:border-red-200 font-semibold text-xs transition-all"
+                      className="px-4 py-2 rounded-full border border-brand-border text-brand-mutedText hover:text-red-600 hover:border-red-200 font-semibold text-xs transition-all"
                     >
                       Leave
                     </button>
@@ -328,27 +328,27 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
           </div>
 
           {/* Group Identity Info */}
-          <div class="space-y-2">
-            <div class="flex items-center gap-3 flex-wrap">
-              <h1 class="text-2xl font-bold text-brand-mainText">{group.name}</h1>
-              <span class={`px-3 py-1 rounded-full text-[0.7rem] font-bold flex items-center gap-1 ${
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold text-brand-mainText">{group.name}</h1>
+              <span className={`px-3 py-1 rounded-full text-[0.7rem] font-bold flex items-center gap-1 ${
                 group.privacy === 'private' ? 'bg-amber-100 text-amber-700' : 'bg-brand-purple/10 text-brand-purple'
               }`}>
-                {group.privacy === 'private' ? <Lock class="w-3 h-3" /> : <Globe class="w-3 h-3" />}
+                {group.privacy === 'private' ? <Lock className="w-3 h-3" /> : <Globe className="w-3 h-3" />}
                 <span>{group.privacy === 'private' ? 'Private Group' : 'Public Group'}</span>
               </span>
             </div>
 
-            <p class="text-xs font-bold text-brand-purple">/groups/{group.slug}</p>
-            <p class="text-sm text-brand-mainText max-w-2xl leading-relaxed">{group.description}</p>
+            <p className="text-xs font-bold text-brand-purple">/groups/{group.slug}</p>
+            <p className="text-sm text-brand-mainText max-w-2xl leading-relaxed">{group.description}</p>
             
-            <div class="flex items-center gap-4 text-xs text-brand-mutedText pt-1">
-              <div class="flex items-center gap-1 font-semibold">
-                <Users class="w-4 h-4 text-brand-purple" />
+            <div className="flex items-center gap-4 text-xs text-brand-mutedText pt-1">
+              <div className="flex items-center gap-1 font-semibold">
+                <Users className="w-4 h-4 text-brand-purple" />
                 <span>{group.memberCount || 1} Members</span>
               </div>
-              <div class="flex items-center gap-1 font-semibold">
-                <MessageSquare class="w-4 h-4 text-brand-pink" />
+              <div className="flex items-center gap-1 font-semibold">
+                <MessageSquare className="w-4 h-4 text-brand-pink" />
                 <span>{group.postCount || 0} Posts</span>
               </div>
             </div>
@@ -356,10 +356,10 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
         </div>
 
         {/* Group Tabs */}
-        <div class="flex items-center gap-2 px-6 border-t border-brand-border pt-3 pb-3 bg-brand-surface">
+        <div className="flex items-center gap-2 px-6 border-t border-brand-border pt-3 pb-3 bg-brand-surface">
           <button
             onClick={() => setActiveTab('posts')}
-            class={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
+            className={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
               activeTab === 'posts'
                 ? 'bg-primary-gradient text-white shadow-gradient-glow'
                 : 'bg-brand-lavender text-brand-mutedText hover:text-brand-purple'
@@ -369,7 +369,7 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
           </button>
           <button
             onClick={() => setActiveTab('members')}
-            class={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
+            className={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
               activeTab === 'members'
                 ? 'bg-primary-gradient text-white shadow-gradient-glow'
                 : 'bg-brand-lavender text-brand-mutedText hover:text-brand-purple'
@@ -379,7 +379,7 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
           </button>
           <button
             onClick={() => setActiveTab('about')}
-            class={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
+            className={`px-5 py-2 rounded-full font-bold text-xs transition-all ${
               activeTab === 'about'
                 ? 'bg-primary-gradient text-white shadow-gradient-glow'
                 : 'bg-brand-lavender text-brand-mutedText hover:text-brand-purple'
@@ -393,53 +393,53 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
       {/* Main Tab Content */}
       {activeTab === 'posts' ? (
         group.privacy === 'private' && !isMember ? (
-          <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center space-y-3">
-            <Lock class="w-10 h-10 text-amber-500 mx-auto" />
-            <h3 class="font-bold text-base text-brand-mainText">This Group is Private</h3>
-            <p class="text-xs text-brand-mutedText max-w-xs mx-auto">
+          <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center space-y-3">
+            <Lock className="w-10 h-10 text-amber-500 mx-auto" />
+            <h3 className="font-bold text-base text-brand-mainText">This Group is Private</h3>
+            <p className="text-xs text-brand-mutedText max-w-xs mx-auto">
               Join this group to view its feed, posts, and participate in discussions.
             </p>
           </div>
         ) : (
-          <div class="space-y-6">
+          <div className="space-y-6">
             {/* Create Post Composer for Members */}
             {isMember && (
-              <div class="bg-brand-surface rounded-3xl border border-brand-border p-5 shadow-soft-sm space-y-3">
-                <form onSubmit={handleCreatePostSubmit} class="space-y-3">
+              <div className="bg-brand-surface rounded-3xl border border-brand-border p-5 shadow-soft-sm space-y-3">
+                <form onSubmit={handleCreatePostSubmit} className="space-y-3">
                   <textarea
                     value={postText}
                     onChange={(e) => setPostText(e.target.value)}
                     placeholder={`What's on your mind, ${userDoc?.displayName || 'Tivora User'}?`}
                     rows={3}
-                    class="w-full bg-brand-lavender border border-transparent focus:border-brand-purple focus:bg-white rounded-2xl p-3 text-xs sm:text-sm text-brand-mainText outline-none resize-none transition-all placeholder:text-brand-mutedText/70"
+                    className="w-full bg-brand-lavender border border-transparent focus:border-brand-purple focus:bg-brand-surface rounded-2xl p-3 text-xs sm:text-sm text-brand-mainText outline-none resize-none transition-all placeholder:text-brand-mutedText/70"
                   />
 
                   {postImage && (
-                    <div class="relative max-h-44 rounded-2xl overflow-hidden border border-brand-border">
-                      <img src={postImage} alt="Post preview" class="w-full h-full object-cover" />
+                    <div className="relative max-h-44 rounded-2xl overflow-hidden border border-brand-border">
+                      <img src={postImage} alt="Post preview" className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => setPostImage('')}
-                        class="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black"
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black"
                       >
                         ✕
                       </button>
                     </div>
                   )}
 
-                  <div class="flex items-center justify-between pt-1">
-                    <label class="px-3 py-1.5 rounded-full bg-brand-lavender text-brand-purple font-semibold text-xs cursor-pointer hover:bg-brand-purple/10 transition-colors inline-flex items-center gap-1.5">
-                      <ImageIcon class="w-4 h-4" />
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="px-3 py-1.5 rounded-full bg-brand-lavender text-brand-purple font-semibold text-xs cursor-pointer hover:bg-brand-purple/10 transition-colors inline-flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4" />
                       <span>Photo</span>
-                      <input type="file" accept="image/*" class="hidden" onChange={handleImageUpload} />
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                     </label>
 
                     <button
                       type="submit"
                       disabled={creatingPost || (!postText.trim() && !postImage)}
-                      class="px-5 py-2 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform disabled:opacity-40 flex items-center gap-1.5"
+                      className="px-5 py-2 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform disabled:opacity-40 flex items-center gap-1.5"
                     >
-                      {creatingPost ? <Loader2 class="w-4 h-4 animate-spin" /> : <Send class="w-4 h-4" />}
+                      {creatingPost ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                       <span>Post</span>
                     </button>
                   </div>
@@ -448,17 +448,17 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
             )}
 
             {/* Group Feed Posts List */}
-            <div class="space-y-4">
+            <div className="space-y-4">
               {posts.length === 0 ? (
-                <div class="bg-brand-surface rounded-3xl p-8 border border-brand-border text-center">
-                  <p class="text-xs text-brand-mutedText">No posts yet in this group feed. Be the first to post!</p>
+                <div className="bg-brand-surface rounded-3xl p-8 border border-brand-border text-center">
+                  <p className="text-xs text-brand-mutedText">No posts yet in this group feed. Be the first to post!</p>
                 </div>
               ) : (
                 posts.map((p) => (
-                  <div key={p.id} class="relative">
+                  <div key={p.id} className="relative">
                     {p.isPinned && (
-                      <div class="bg-amber-50 text-amber-700 text-[0.68rem] font-bold px-4 py-1 rounded-t-2xl border-t border-x border-amber-200 inline-flex items-center gap-1 shadow-soft-xs">
-                        <Pin class="w-3 h-3 fill-amber-500 text-amber-500" />
+                      <div className="bg-amber-50 text-amber-700 text-[0.68rem] font-bold px-4 py-1 rounded-t-2xl border-t border-x border-amber-200 inline-flex items-center gap-1 shadow-soft-xs">
+                        <Pin className="w-3 h-3 fill-amber-500 text-amber-500" />
                         <span>Pinned Post</span>
                       </div>
                     )}
@@ -482,13 +482,13 @@ export default function GroupDetails({ groupSlug, groupId: propGroupId, onBack, 
         />
       ) : (
         /* About Tab */
-        <div class="bg-brand-surface rounded-3xl border border-brand-border p-6 shadow-soft-sm space-y-4 text-xs leading-relaxed text-brand-mainText">
-          <h3 class="font-bold text-sm text-brand-mainText">About {group.name}</h3>
+        <div className="bg-brand-surface rounded-3xl border border-brand-border p-6 shadow-soft-sm space-y-4 text-xs leading-relaxed text-brand-mainText">
+          <h3 className="font-bold text-sm text-brand-mainText">About {group.name}</h3>
           <p>{group.description || "No detailed description provided."}</p>
-          <div class="pt-3 border-t border-brand-border space-y-2">
-            <p><span class="font-bold">Privacy:</span> {group.privacy === 'private' ? 'Private Group' : 'Public Group'}</p>
-            <p><span class="font-bold">Permanent URL:</span> /groups/{group.slug}</p>
-            <p><span class="font-bold">Members:</span> {group.memberCount || 1}</p>
+          <div className="pt-3 border-t border-brand-border space-y-2">
+            <p><span className="font-bold">Privacy:</span> {group.privacy === 'private' ? 'Private Group' : 'Public Group'}</p>
+            <p><span className="font-bold">Permanent URL:</span> /groups/{group.slug}</p>
+            <p><span className="font-bold">Members:</span> {group.memberCount || 1}</p>
           </div>
         </div>
       )}

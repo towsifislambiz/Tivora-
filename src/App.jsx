@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { CallProvider } from './context/CallContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { RealtimeProvider } from './context/RealtimeContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import SEO from './components/common/SEO';
 
@@ -16,6 +18,8 @@ import Topbar from './components/layout/Topbar';
 import Sidebar from './components/layout/Sidebar';
 import RightSidebar from './components/layout/RightSidebar';
 import MobileBottomNav from './components/layout/MobileBottomNav';
+import GlassDock from './components/layout/GlassDock';
+import AmbientBackground from './components/ui/AmbientBackground';
 import Toast from './components/common/Toast';
 import CreatePostModal from './components/common/CreatePostModal';
 
@@ -304,7 +308,7 @@ function MainAppContent() {
 
         // Render Protected Application UI (Phase 1 preserved)
         return (
-          <div className={`flex flex-col bg-brand-bg text-brand-mainText ${activeScreen === 'messages' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
+          <div className={`flex flex-col text-brand-mainText ${activeScreen === 'messages' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
             {/* 1. Dev Switcher Header Bar */}
             <DevBar
               activeScreen={activeScreen}
@@ -334,7 +338,7 @@ function MainAppContent() {
               </div>
             ) : (
               <div className={`max-w-7xl w-full mx-auto flex-1 grid items-start ${
-                activeScreen === 'messages' ? 'p-0 md:px-8 md:py-6 gap-0 md:gap-7 h-[calc(100dvh-44px)] md:h-auto overflow-hidden' : 'px-4 md:px-8 py-6 gap-7'
+                activeScreen === 'messages' ? 'p-0 md:px-8 md:py-6 gap-0 md:gap-7 h-[calc(100dvh-44px)] md:h-auto overflow-hidden' : 'px-4 md:px-8 py-6 gap-7 pb-28 lg:pb-32'
               } ${
                 (['messages', 'notifications', 'friends', 'settings', 'search_results', 'saved', 'explore', 'admin_moderation'].includes(activeScreen))
                   ? 'grid-cols-1 lg:grid-cols-[260px_1fr]'
@@ -367,6 +371,16 @@ function MainAppContent() {
               onOpenCreateModal={() => setIsCreateModalOpen(true)}
             />
 
+            {/* 4b. Floating Desktop Liquid-Glass Dock (hidden while the
+                 full-height messenger owns the viewport) */}
+            {activeScreen !== 'messages' && !isMobileSim && (
+              <GlassDock
+                activeScreen={activeScreen}
+                setActiveScreen={(screen) => handleNavigateScreen(screen)}
+                onOpenCreateModal={() => setIsCreateModalOpen(true)}
+              />
+            )}
+
             {/* 5. Create Post Modal */}
             <CreatePostModal
               isOpen={isCreateModalOpen}
@@ -392,10 +406,17 @@ function MainAppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CallProvider>
-        <MainAppContent />
-      </CallProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <RealtimeProvider>
+          <CallProvider>
+            {/* Sits behind everything — including the auth screens — so the
+                glass chrome always has a colour field to refract. */}
+            <AmbientBackground />
+            <MainAppContent />
+          </CallProvider>
+        </RealtimeProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

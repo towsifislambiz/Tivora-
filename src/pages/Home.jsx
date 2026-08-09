@@ -104,43 +104,43 @@ export default function Home({ onOpenCreateModal, onSelectProfileUsername, onSho
 
       {/* Feed Content */}
       {loading ? (
-        <div class="space-y-4">
+        <div className="space-y-4">
           {[1, 2, 3].map((n) => (
-            <div key={n} class="bg-brand-surface rounded-3xl p-6 border border-brand-border animate-pulse space-y-4">
-              <div class="flex items-center gap-3">
-                <div class="w-11 h-11 bg-brand-lavender rounded-full" />
-                <div class="space-y-2 flex-1">
-                  <div class="w-32 h-3.5 bg-brand-lavender rounded-full" />
-                  <div class="w-20 h-2.5 bg-brand-lavender rounded-full" />
+            <div key={n} className="bg-brand-surface rounded-3xl p-6 border border-brand-border animate-pulse space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-brand-lavender rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <div className="w-32 h-3.5 bg-brand-lavender rounded-full" />
+                  <div className="w-20 h-2.5 bg-brand-lavender rounded-full" />
                 </div>
               </div>
-              <div class="space-y-2">
-                <div class="w-full h-3 bg-brand-lavender rounded-full" />
-                <div class="w-4/5 h-3 bg-brand-lavender rounded-full" />
+              <div className="space-y-2">
+                <div className="w-full h-3 bg-brand-lavender rounded-full" />
+                <div className="w-4/5 h-3 bg-brand-lavender rounded-full" />
               </div>
             </div>
           ))}
         </div>
       ) : posts.length === 0 ? (
-        <div class="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-4 shadow-soft-sm">
-          <div class="w-16 h-16 rounded-full bg-brand-lavender text-brand-purple flex items-center justify-center mx-auto">
-            <MessageSquarePlus class="w-8 h-8" />
+        <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border text-center space-y-4 shadow-soft-sm">
+          <div className="w-16 h-16 rounded-full bg-brand-lavender text-brand-purple flex items-center justify-center mx-auto">
+            <MessageSquarePlus className="w-8 h-8" />
           </div>
-          <div class="space-y-1">
-            <h3 class="font-bold text-lg text-brand-mainText">No posts yet</h3>
-            <p class="text-xs text-brand-mutedText max-w-sm mx-auto">
+          <div className="space-y-1">
+            <h3 className="font-bold text-lg text-brand-mainText">No posts yet</h3>
+            <p className="text-xs text-brand-mutedText max-w-sm mx-auto">
               Be the first to share something with the Tivora community!
             </p>
           </div>
           <button
             onClick={onOpenCreateModal}
-            class="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform"
+            className="px-6 py-2.5 rounded-full bg-primary-gradient text-white font-bold text-xs shadow-gradient-glow hover:scale-105 transition-transform"
           >
             Create First Post
           </button>
         </div>
       ) : (
-        <div class="space-y-4">
+        <div className="space-y-4">
           {posts.map((post) => (
             <PostCard
               key={post.id}
@@ -154,15 +154,15 @@ export default function Home({ onOpenCreateModal, onSelectProfileUsername, onSho
 
           {/* Load More Button */}
           {hasMore && (
-            <div class="text-center pt-4 pb-2">
+            <div className="text-center pt-4 pb-2">
               <button
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                class="px-8 py-3 rounded-full bg-brand-surface border border-brand-border text-brand-mainText font-bold text-xs hover:bg-brand-lavender hover:text-brand-purple transition-all shadow-soft-xs disabled:opacity-50 inline-flex items-center gap-2"
+                className="px-8 py-3 rounded-full bg-brand-surface border border-brand-border text-brand-mainText font-bold text-xs hover:bg-brand-lavender hover:text-brand-purple transition-all shadow-soft-xs disabled:opacity-50 inline-flex items-center gap-2"
               >
                 {loadingMore ? (
                   <>
-                    <Loader2 class="w-4 h-4 animate-spin text-brand-purple" />
+                    <Loader2 className="w-4 h-4 animate-spin text-brand-purple" />
                     <span>Loading...</span>
                   </>
                 ) : (

@@ -151,7 +151,7 @@ export default function VoiceCallScreen() {
             src={partnerAvatar}
             name={partnerName}
             size="w-28 h-28"
-            className="relative border-4 border-white shadow-soft-lg"
+            className="relative border-4 border-brand-surface shadow-soft-lg"
           />
         </div>
 
