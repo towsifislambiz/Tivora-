@@ -60,16 +60,18 @@ export function useWebRTC() {
     };
 
     pc.ontrack = (event) => {
+      let streamToSet = null;
       if (event.streams && event.streams[0]) {
-        remoteStreamRef.current = event.streams[0];
-        setRemoteStream(event.streams[0]);
+        streamToSet = new MediaStream(event.streams[0].getTracks());
       } else {
         if (!remoteStreamRef.current) {
           remoteStreamRef.current = new MediaStream();
         }
         remoteStreamRef.current.addTrack(event.track);
-        setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
+        streamToSet = new MediaStream(remoteStreamRef.current.getTracks());
       }
+      remoteStreamRef.current = streamToSet;
+      setRemoteStream(streamToSet);
     };
 
     pc.onconnectionstatechange = () => {
@@ -154,20 +156,47 @@ export function useWebRTC() {
     }
   }, []);
 
-  // Generate SDP Offer
+  // Generate SDP Offer (Caller)
   const createOffer = useCallback(async () => {
     if (!pcRef.current) throw new Error("PeerConnection not initialized");
+
+    // Re-verify local media tracks are active and attached before creating offer
+    if (localStreamRef.current) {
+      const senders = pcRef.current.getSenders();
+      localStreamRef.current.getTracks().forEach((track) => {
+        track.enabled = true;
+        const exists = senders.some((s) => s.track && s.track.kind === track.kind);
+        if (!exists) {
+          pcRef.current.addTrack(track, localStreamRef.current);
+        }
+      });
+    }
+
     const offer = await pcRef.current.createOffer();
     await pcRef.current.setLocalDescription(offer);
     return offer;
   }, []);
 
-  // Receive Offer & Generate SDP Answer
+  // Receive Offer & Generate SDP Answer (Receiver — Guarantees 2-Way SendRecv Audio)
   const handleOfferAndCreateAnswer = useCallback(async (offerSdp) => {
     if (!pcRef.current) throw new Error("PeerConnection not initialized");
+
+    // CRITICAL FIX FOR RECEIVER VOICE: Re-verify receiver's local media tracks are active and attached before answer SDP generation
+    if (localStreamRef.current) {
+      const senders = pcRef.current.getSenders();
+      localStreamRef.current.getTracks().forEach((track) => {
+        track.enabled = true;
+        const exists = senders.some((s) => s.track && s.track.kind === track.kind);
+        if (!exists) {
+          pcRef.current.addTrack(track, localStreamRef.current);
+        }
+      });
+    }
+
     await pcRef.current.setRemoteDescription(new RTCSessionDescription(offerSdp));
     hasRemoteDescriptionRef.current = true;
     await processQueuedIceCandidates();
+
     const answer = await pcRef.current.createAnswer();
     await pcRef.current.setLocalDescription(answer);
     return answer;

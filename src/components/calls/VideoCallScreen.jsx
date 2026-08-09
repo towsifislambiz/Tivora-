@@ -48,10 +48,14 @@ export default function VideoCallScreen() {
     // Build AudioContext anti-echo & Noise Gate processing pipeline for remote audio
     const setupAudio = async () => {
       try {
+        const audioTrack = remoteStream.getAudioTracks()[0];
+        if (!audioTrack) return; // AudioContext only attaches if audio track is present
+
+        const audioOnlyStream = new MediaStream([audioTrack]);
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-        const sourceNode = audioCtx.createMediaStreamSource(remoteStream);
+        const sourceNode = audioCtx.createMediaStreamSource(audioOnlyStream);
 
         // DynamicsCompressor — kills echo bursts & sudden loudness spikes
         const compressor = audioCtx.createDynamicsCompressor();
