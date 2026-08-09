@@ -181,11 +181,12 @@ export function CallProvider({ children }) {
         if (!updatedCall) return;
 
         if (
-          updatedCall.status === 'connecting' &&
-          updatedCall.answer &&
-          pc.signalingState === 'have-local-offer'
+          (updatedCall.status === 'connecting' || updatedCall.status === 'connected') &&
+          updatedCall.answer
         ) {
-          await webRTC.handleAnswer(updatedCall.answer);
+          if (pc.signalingState !== 'stable') {
+            await webRTC.handleAnswer(updatedCall.answer);
+          }
           setCallState('connected');
           if (callingTimeoutRef.current) clearTimeout(callingTimeoutRef.current);
         } else if (updatedCall.status === 'rejected') {

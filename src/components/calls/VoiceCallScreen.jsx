@@ -29,6 +29,16 @@ export default function VoiceCallScreen() {
 
         sourceNode = audioCtx.createMediaStreamSource(remoteStream);
 
+        // Highpass Filter (kills low-frequency AC/fan rumble below 80Hz)
+        const highpass = audioCtx.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.setValueAtTime(80, audioCtx.currentTime);
+
+        // Lowpass Filter (kills high-frequency static hiss above 3400Hz)
+        const lowpass = audioCtx.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.setValueAtTime(3400, audioCtx.currentTime);
+
         // DynamicsCompressor reduces sudden loud peaks (echo bursts)
         const compressor = audioCtx.createDynamicsCompressor();
         compressor.threshold.setValueAtTime(-24, audioCtx.currentTime);
@@ -44,16 +54,18 @@ export default function VoiceCallScreen() {
 
         // Gain node for Noise Gate mute/unmute output
         const gainNode = audioCtx.createGain();
-        gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.0, audioCtx.currentTime); // Start muted
 
-        // Chain: source → compressor → analyser → gain → destination (speakers)
-        sourceNode.connect(compressor);
+        // Chain: source → highpass → lowpass → compressor → analyser → gain → destination (speakers)
+        sourceNode.connect(highpass);
+        highpass.connect(lowpass);
+        lowpass.connect(compressor);
         compressor.connect(analyser);
         analyser.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
-        // Noise Gate Loop: mutes audio during silence/ambient hiss, unmutes during human speech
-        const NOISE_THRESHOLD = 0.012; // RMS Threshold for voice vs background room hiss
+        // Strict Noise Gate Loop: mutes audio during silence/ambient hiss, unmutes during human speech
+        const NOISE_THRESHOLD = 0.018; // RMS Threshold for human voice vs background room hiss
         const checkNoiseGate = () => {
           analyser.getFloatTimeDomainData(pcmData);
           let sumSquares = 0;
@@ -62,15 +74,15 @@ export default function VoiceCallScreen() {
           }
           const rms = Math.sqrt(sumSquares / pcmData.length);
           const targetGain = rms > NOISE_THRESHOLD ? 1.0 : 0.0;
-          gainNode.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.05);
+          gainNode.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.03);
 
           animationFrameId = requestAnimationFrame(checkNoiseGate);
         };
 
         checkNoiseGate();
 
-        // Keep HTML5 audio element muted — AudioContext handles output
-        audioEl.srcObject = remoteStream;
+        // Ensure HTML5 audio element stays completely muted and silent (AudioContext handles filtered output)
+        audioEl.srcObject = null;
         audioEl.muted = true;
         audioEl.volume = 0;
 

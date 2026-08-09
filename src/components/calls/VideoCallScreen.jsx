@@ -30,7 +30,7 @@ export default function VideoCallScreen() {
       localVideoRef.current.muted = true;
       localVideoRef.current.play().catch(() => {});
     }
-  }, [localStream]);
+  }, [localStream, callState]);
 
   // Bind Remote Video + AudioContext Anti-Echo Pipeline
   useEffect(() => {
@@ -57,6 +57,16 @@ export default function VideoCallScreen() {
 
         const sourceNode = audioCtx.createMediaStreamSource(audioOnlyStream);
 
+        // Highpass Filter (kills low-frequency AC/fan rumble below 80Hz)
+        const highpass = audioCtx.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.setValueAtTime(80, audioCtx.currentTime);
+
+        // Lowpass Filter (kills high-frequency static hiss above 3400Hz)
+        const lowpass = audioCtx.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.setValueAtTime(3400, audioCtx.currentTime);
+
         // DynamicsCompressor — kills echo bursts & sudden loudness spikes
         const compressor = audioCtx.createDynamicsCompressor();
         compressor.threshold.setValueAtTime(-24, audioCtx.currentTime);
@@ -72,16 +82,18 @@ export default function VideoCallScreen() {
 
         // Gain — Noise Gate output
         const gainNode = audioCtx.createGain();
-        gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.0, audioCtx.currentTime); // Start muted
 
-        // Chain: remote stream → compressor → analyser → gain → speakers
-        sourceNode.connect(compressor);
+        // Chain: source → highpass → lowpass → compressor → analyser → gain → speakers
+        sourceNode.connect(highpass);
+        highpass.connect(lowpass);
+        lowpass.connect(compressor);
         compressor.connect(analyser);
         analyser.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
-        // Noise Gate Loop: mutes audio during silence/ambient hiss, unmutes during human speech
-        const NOISE_THRESHOLD = 0.012; // RMS Threshold for voice vs background room hiss
+        // Strict Noise Gate Loop: mutes audio during silence/ambient hiss, unmutes during human speech
+        const NOISE_THRESHOLD = 0.018; // RMS Threshold for human voice vs background room hiss
         const checkNoiseGate = () => {
           analyser.getFloatTimeDomainData(pcmData);
           let sumSquares = 0;
