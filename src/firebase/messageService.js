@@ -387,6 +387,20 @@ export function subscribeToConversationDoc(conversationId, callback) {
 }
 
 /**
+ * Helper to convert Blob to Base64 Data URL for instant voice delivery
+ * @param {Blob} blob 
+ * @returns {Promise<string>}
+ */
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
  * Send a voice note audio message in a conversation
  * @param {string} conversationId 
  * @param {string} senderId 
@@ -401,13 +415,34 @@ export async function sendVoiceMessage(conversationId, senderId, receiverId, aud
   }
 
   const canonicalConvId = getCanonicalConversationId(senderId, receiverId);
-  const fileName = `voice_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.webm`;
-  const storagePath = `conversations/${canonicalConvId}/voice_notes/${fileName}`;
-  const fileRef = ref(storage, storagePath);
 
-  // Upload audio blob to Firebase Storage
-  await uploadBytes(fileRef, audioBlob);
-  const audioUrl = await getDownloadURL(fileRef);
+  // 1. Convert Blob to Base64 for instant 0ms fallback delivery
+  let audioUrl = await blobToBase64(audioBlob).catch(() => null);
+
+  // 2. Try Firebase Storage upload with 2.5s fast timeout
+  try {
+    const fileName = `voice_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.webm`;
+    const storagePath = `conversations/${canonicalConvId}/voice_notes/${fileName}`;
+    const fileRef = ref(storage, storagePath);
+
+    const uploadPromise = uploadBytes(fileRef, audioBlob)
+      .then(() => getDownloadURL(fileRef));
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Storage upload timeout")), 2500)
+    );
+
+    const storageUrl = await Promise.race([uploadPromise, timeoutPromise]);
+    if (storageUrl) {
+      audioUrl = storageUrl;
+    }
+  } catch (storageErr) {
+    console.warn("Storage upload notice (using instant Base64 audio fallback):", storageErr);
+  }
+
+  if (!audioUrl) {
+    throw new Error("Failed to process audio note.");
+  }
 
   const convRef = doc(db, CONVERSATIONS_COLLECTION, canonicalConvId);
   const messageRef = doc(collection(db, CONVERSATIONS_COLLECTION, canonicalConvId, "messages"));

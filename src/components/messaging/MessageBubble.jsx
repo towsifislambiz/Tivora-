@@ -229,13 +229,17 @@ function VoiceNotePlayer({ audioUrl, duration: initialDuration, isOwn }) {
     audioRef.current = audio;
 
     audio.onloadedmetadata = () => {
-      if (audio.duration && !isNaN(audio.duration)) {
+      if (audio.duration && isFinite(audio.duration) && !isNaN(audio.duration)) {
         setDuration(Math.round(audio.duration));
+      } else if (initialDuration && isFinite(initialDuration)) {
+        setDuration(initialDuration);
       }
     };
 
     audio.ontimeupdate = () => {
-      setCurrentTime(audio.currentTime);
+      if (audio.currentTime && isFinite(audio.currentTime)) {
+        setCurrentTime(audio.currentTime);
+      }
     };
 
     audio.onended = () => {
@@ -247,7 +251,7 @@ function VoiceNotePlayer({ audioUrl, duration: initialDuration, isOwn }) {
       audio.pause();
       audioRef.current = null;
     };
-  }, [audioUrl]);
+  }, [audioUrl, initialDuration]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -268,10 +272,13 @@ function VoiceNotePlayer({ audioUrl, duration: initialDuration, isOwn }) {
   };
 
   const formatTime = (secs) => {
+    if (!secs || isNaN(secs) || !isFinite(secs) || secs < 0) return '0:00';
     const mins = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${mins}:${String(s).padStart(2, '0')}`;
   };
+
+  const validDuration = (duration && isFinite(duration)) ? duration : ((initialDuration && isFinite(initialDuration)) ? initialDuration : 0);
 
   return (
     <div className={`flex items-center gap-3 p-1 min-w-[200px] max-w-[260px] ${isOwn ? 'text-white' : 'text-brand-mainText'}`}>
@@ -290,7 +297,7 @@ function VoiceNotePlayer({ audioUrl, duration: initialDuration, isOwn }) {
           <input
             type="range"
             min="0"
-            max={duration || 100}
+            max={validDuration || 1}
             step="0.1"
             value={currentTime}
             onChange={handleSeek}
@@ -300,7 +307,7 @@ function VoiceNotePlayer({ audioUrl, duration: initialDuration, isOwn }) {
 
         <div className="flex items-center justify-between text-[0.65rem] font-mono opacity-80">
           <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+          <span>{formatTime(validDuration)}</span>
         </div>
       </div>
     </div>

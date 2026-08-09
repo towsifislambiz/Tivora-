@@ -345,7 +345,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
     }
   };
 
-  // Start Voice Note Recording
+  // Start Voice Note Recording with High-Clarity Audio & Noise Suppression
   const handleStartRecording = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       if (onShowToast) onShowToast("Voice recording is not supported on this browser.");
@@ -353,11 +353,30 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000
+        }
+      });
       recordingStreamRef.current = stream;
       audioChunksRef.current = [];
 
-      const mediaRecorder = new MediaRecorder(stream);
+      // Determine best supported clear audio MIME type
+      let options = {};
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          options = { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 128000 };
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          options = { mimeType: 'audio/mp4', audioBitsPerSecond: 128000 };
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          options = { mimeType: 'audio/webm', audioBitsPerSecond: 128000 };
+        }
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -366,7 +385,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
         }
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(100);
       setIsRecording(true);
       setRecordingDuration(0);
 
@@ -405,14 +424,15 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
       clearInterval(recordingTimerRef.current);
     }
 
-    const duration = recordingDuration;
+    const duration = Math.max(1, recordingDuration);
 
     mediaRecorderRef.current.onstop = async () => {
       if (recordingStreamRef.current) {
         recordingStreamRef.current.getTracks().forEach((track) => track.stop());
       }
 
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
       audioChunksRef.current = [];
       setIsRecording(false);
       setRecordingDuration(0);
