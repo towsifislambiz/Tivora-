@@ -97,22 +97,16 @@ jobs:
         env:
           ANDROID_VERSION_CODE: ${{ env.VERSION_CODE }}
           ANDROID_VERSION_NAME: ${{ env.VERSION }}
-          KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_FILE: ${{ env.KEYSTORE_FILE || '' }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || '' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || '' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || '' }}
         working-directory: android
         run: |
           chmod +x gradlew
-          if [ -f "$KEYSTORE_FILE" ]; then
-            ./gradlew assembleRelease \
-              -PANDROID_VERSION_CODE=${{ env.VERSION_CODE }} \
-              -PANDROID_VERSION_NAME=${{ env.VERSION }}
-          else
-            ./gradlew assembleDebug \
-              -PANDROID_VERSION_CODE=${{ env.VERSION_CODE }} \
-              -PANDROID_VERSION_NAME=${{ env.VERSION }}
-          fi
+          ./gradlew assembleRelease \
+            -PANDROID_VERSION_CODE=${{ env.VERSION_CODE }} \
+            -PANDROID_VERSION_NAME=${{ env.VERSION }}
 
       # ─── Step 11: Secure Cleanup ──────────────────────────────────────────────
       - name: Delete temporary keystore
