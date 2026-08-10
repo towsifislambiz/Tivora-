@@ -102,16 +102,20 @@ export default function EditPostModal({ isOpen, post, onClose, onPostUpdated, on
 
           {/* Image Preview Container */}
           {(newImagePreview || (currentImageURL && !removeImage)) && (
-            <div className="relative rounded-2xl overflow-hidden max-h-60 border border-brand-border group">
+            <div className="relative rounded-2xl overflow-hidden max-h-80 border border-brand-border bg-slate-950/90 flex items-center justify-center group">
+              <div 
+                className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 pointer-events-none"
+                style={{ backgroundImage: `url(${newImagePreview || currentImageURL})` }}
+              />
               <img
                 src={newImagePreview || currentImageURL}
                 alt="Post Attachment Preview"
-                className="w-full h-full object-cover max-h-60"
+                className="relative z-10 w-full h-auto max-h-80 object-contain mx-auto"
               />
               <button
                 type="button"
                 onClick={handleRemoveCurrentImage}
-                className="absolute top-2 right-2 p-2 rounded-full bg-red-500 text-white shadow-soft-md hover:bg-red-600 transition-colors"
+                className="absolute top-2 right-2 z-20 p-2 rounded-full bg-red-500 text-white shadow-soft-md hover:bg-red-600 transition-colors"
                 title="Remove Image"
               >
                 <Trash2 className="w-4 h-4" />

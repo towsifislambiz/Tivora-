@@ -22,6 +22,7 @@ import GlassDock from './components/layout/GlassDock';
 import AmbientBackground from './components/ui/AmbientBackground';
 import Toast from './components/common/Toast';
 import CreatePostModal from './components/common/CreatePostModal';
+import InstallAppModal from './components/common/InstallAppModal';
 
 // Call System Components (Phase 12)
 import IncomingCallModal from './components/calls/IncomingCallModal';
@@ -60,6 +61,7 @@ function MainAppContent() {
 
   const [isMobileSim, setIsMobileSim] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
   const [suggestedFriends, setSuggestedFriends] = useState(initialSuggestedFriends);
@@ -330,6 +332,7 @@ function MainAppContent() {
               onSelectProfileUsername={handleSelectProfileUsername}
               onSelectPostId={handleSelectPostId}
               onShowToast={showToast}
+              onOpenInstallModal={() => setIsInstallModalOpen(true)}
             />
 
             {/* 3. Main Body Container (Desktop 3 Columns or Mobile Simulator) */}
@@ -354,6 +357,7 @@ function MainAppContent() {
                   activeScreen={activeScreen}
                   setActiveScreen={(screen) => handleNavigateScreen(screen)}
                   onShowToast={showToast}
+                  onOpenInstallModal={() => setIsInstallModalOpen(true)}
                 />
                 
                 <main className={`min-w-0 ${activeScreen === 'messages' ? 'h-full min-h-0 flex flex-col flex-1 overflow-hidden' : ''}`}>
@@ -392,6 +396,13 @@ function MainAppContent() {
               isOpen={isCreateModalOpen}
               onClose={() => setIsCreateModalOpen(false)}
               onPostCreated={handlePostCreated}
+              onShowToast={showToast}
+            />
+
+            {/* Install Mobile App Modal */}
+            <InstallAppModal
+              isOpen={isInstallModalOpen}
+              onClose={() => setIsInstallModalOpen(false)}
               onShowToast={showToast}
             />
 

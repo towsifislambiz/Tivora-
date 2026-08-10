@@ -93,7 +93,7 @@ export function formatMessageTime(timestamp) {
 }
 
 export default function PostCard({ post, onSelectProfileUsername, onShowToast, onPostUpdated, onPostDeleted }) {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
 
   // Interaction States
   const [isLiked, setIsLiked] = useState(false);
@@ -174,6 +174,10 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
   }, []);
 
   const handleToggleLike = async () => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to interact! 🔒");
+      return;
+    }
     if (!currentUser?.uid || !post?.id || actionPending) return;
 
     const prevLiked = isLiked;
@@ -187,7 +191,11 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
       if (prevLiked) {
         await unlikePost(post.id, currentUser.uid);
       } else {
-        await likePost(post.id, currentUser.uid);
+        await likePost(post.id, currentUser.uid, {
+          displayName: userDoc?.displayName || currentUser.displayName || 'Tivora User',
+          username: userDoc?.username || 'user',
+          photoURL: userDoc?.photoURL || currentUser.photoURL || ''
+        });
       }
     } catch (err) {
       setIsLiked(prevLiked);
@@ -242,6 +250,10 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
 
   const handleAddCommentSubmit = async (e) => {
     e?.preventDefault();
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to comment! 🔒");
+      return;
+    }
     if (!commentText.trim() || !currentUser?.uid || submittingComment) return;
 
     setSubmittingComment(true);
@@ -318,7 +330,7 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
   };
 
   return (
-    <div className="bg-brand-surface rounded-3xl p-6 border border-brand-border shadow-soft-sm space-y-4 relative">
+    <div className="bg-brand-surface rounded-3xl p-4 sm:p-6 border border-brand-border shadow-soft-sm space-y-4 relative overflow-hidden">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3.5 cursor-pointer group" onClick={handleAuthorClick}>
           <UserAvatar
@@ -383,12 +395,18 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
       {(post.imageURL || post.image) && (
         <div 
           onClick={handleImageClick}
-          className="rounded-2xl overflow-hidden max-h-96 border border-brand-border shadow-soft-xs bg-black/5 relative cursor-pointer group select-none touch-manipulation"
+          className="rounded-2xl overflow-hidden border border-brand-border/60 shadow-soft-xs bg-slate-950/90 dark:bg-black/90 relative cursor-pointer group select-none touch-manipulation flex items-center justify-center max-h-[550px] sm:max-h-[600px] w-full"
         >
+          {/* Facebook-style ambient blurred background for seamless letterboxing */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center blur-2xl opacity-35 scale-110 pointer-events-none"
+            style={{ backgroundImage: `url(${post.imageURL || post.image})` }}
+          />
+
           <img
             src={post.imageURL || post.image}
             alt={`Post by ${authorName}`}
-            className="w-full h-full object-cover max-h-96 group-hover:scale-[1.01] transition-transform duration-300"
+            className="relative z-10 w-full h-auto max-h-[550px] sm:max-h-[600px] object-contain mx-auto group-hover:scale-[1.008] transition-transform duration-300"
             loading="lazy"
           />
           {showHeartOverlay && (
@@ -410,44 +428,46 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
         </div>
       </div>
 
-      <div className="flex items-center justify-around pt-1">
+      <div className="flex items-center justify-between gap-1 sm:gap-2 pt-1 min-w-0">
         <button
           onClick={handleToggleLike}
           disabled={actionPending}
-          className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[48px] touch-manipulation ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[44px] sm:min-h-[48px] touch-manipulation ${
             isLiked ? 'text-brand-pink bg-brand-pink/10' : 'text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple'
           }`}
         >
-          <Heart className={`w-4 h-4 ${isLiked ? 'fill-brand-pink text-brand-pink' : ''}`} />
+          <Heart className={`w-4 h-4 shrink-0 ${isLiked ? 'fill-brand-pink text-brand-pink' : ''}`} />
           <span>{isLiked ? 'Liked' : 'Like'}</span>
         </button>
 
         <button
           onClick={() => setShowComments(!showComments)}
-          className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[48px] touch-manipulation ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[44px] sm:min-h-[48px] touch-manipulation ${
             showComments ? 'text-brand-purple bg-brand-purple/10' : 'text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple'
           }`}
         >
-          <MessageCircle className="w-4 h-4" />
+          <MessageCircle className="w-4 h-4 shrink-0" />
           <span>Comment</span>
         </button>
 
         <button
           onClick={handleShareClick}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple transition-all min-h-[48px] touch-manipulation"
+          className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple transition-all min-h-[44px] sm:min-h-[48px] touch-manipulation"
         >
-          <Share2 className="w-4 h-4" />
+          <Share2 className="w-4 h-4 shrink-0" />
           <span>Share</span>
         </button>
 
         <button
           onClick={handleToggleSave}
           disabled={actionPending}
-          className={`flex items-center justify-center p-3 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[48px] min-w-[48px] touch-manipulation ${
+          className={`flex items-center justify-center p-2.5 sm:p-3 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[44px] min-w-[44px] sm:min-h-[48px] sm:min-w-[48px] shrink-0 touch-manipulation ${
             isSaved ? 'text-brand-purple bg-brand-purple/10' : 'text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple'
           }`}
+          title={isSaved ? "Saved" : "Save Post"}
+          aria-label="Save post"
         >
-          <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-brand-purple text-brand-purple' : ''}`} />
+          <Bookmark className={`w-4 h-4 shrink-0 ${isSaved ? 'fill-brand-purple text-brand-purple' : ''}`} />
         </button>
       </div>
 

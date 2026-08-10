@@ -27,7 +27,7 @@ import {
 import RemoveFriendModal from './RemoveFriendModal';
 
 export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onShowToast }) {
-  const { currentUser } = useAuth();
+  const { currentUser, isDemoUser } = useAuth();
 
   const [copied, setCopied] = useState(false);
   const [relationshipStatus, setRelationshipStatus] = useState('none'); // 'self' | 'none' | 'pending_sent' | 'pending_received' | 'friends'
@@ -86,6 +86,10 @@ export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onSho
 
   // Action: Add Friend
   const handleAddFriendClick = async () => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to add friends! 🔒");
+      return;
+    }
     if (!currentUser?.uid || !targetUid || pendingAction) return;
     setPendingAction(true);
     setRelationshipStatus('pending_sent');

@@ -10,7 +10,7 @@ const MAX_CHARS = 2200;
 const COUNTER_VISIBLE_FROM = MAX_CHARS - 300;
 
 export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShowToast }) {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
 
   const [text, setText] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState(null);
@@ -109,6 +109,10 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
   };
 
   const handleSubmit = async () => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to publish posts! 🔒");
+      return;
+    }
     setError('');
     const trimmedText = text.trim();
 
@@ -250,12 +254,16 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
 
           {/* Selected Image Preview Container */}
           {imagePreviewUrl && (
-            <div className="relative rounded-xl overflow-hidden max-h-64 border border-brand-border">
-              <img src={imagePreviewUrl} alt="Preview Attachment" className="w-full h-full object-cover max-h-64" />
+            <div className="relative rounded-xl overflow-hidden max-h-80 border border-brand-border bg-slate-950/90 flex items-center justify-center">
+              <div 
+                className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 pointer-events-none"
+                style={{ backgroundImage: `url(${imagePreviewUrl})` }}
+              />
+              <img src={imagePreviewUrl} alt="Preview Attachment" className="relative z-10 w-full h-auto max-h-80 object-contain mx-auto" />
               <button
                 type="button"
                 onClick={handleRemoveSelectedImage}
-                className="absolute top-2 right-2 p-2 rounded-full bg-black/60 hover:bg-brand-pink text-white transition-colors"
+                className="absolute top-2 right-2 z-20 p-2 rounded-full bg-black/60 hover:bg-brand-pink text-white transition-colors"
                 title="Remove image"
                 aria-label="Remove image"
               >

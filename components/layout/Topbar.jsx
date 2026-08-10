@@ -276,7 +276,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
 
           {/* Interactive Messenger Popover Dropdown */}
           {showMsgDropdown && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-brand-surface rounded-3xl border border-brand-border shadow-soft-lg p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+            <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-w-[calc(100vw-24px)] bg-brand-surface rounded-3xl border border-brand-border shadow-soft-lg p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between border-b border-brand-border pb-3">
                 <h4 className="font-bold text-sm text-brand-mainText flex items-center gap-2">
                   <span>Messenger</span>
@@ -376,7 +376,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
 
           {/* Interactive Notifications Dropdown */}
           {showNotifDropdown && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-brand-surface rounded-3xl border border-brand-border shadow-soft-lg p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+            <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-w-[calc(100vw-24px)] bg-brand-surface rounded-3xl border border-brand-border shadow-soft-lg p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between border-b border-brand-border pb-3">
                 <h4 className="font-bold text-sm text-brand-mainText flex items-center gap-2">
                   <span>Notifications</span>
@@ -442,7 +442,7 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
 
           {/* User Dropdown Menu */}
           {showMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-brand-surface rounded-2xl border border-brand-border shadow-soft-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="fixed right-3 top-16 sm:absolute sm:right-0 sm:top-full sm:mt-2 w-56 max-w-[calc(100vw-24px)] bg-brand-surface rounded-2xl border border-brand-border shadow-soft-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="px-4 py-2.5 border-b border-brand-border">
                 <p className="font-bold text-xs text-brand-mainText truncate">{displayName}</p>
                 <p className="text-[0.7rem] text-brand-mutedText truncate">{email}</p>

@@ -395,12 +395,18 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
       {(post.imageURL || post.image) && (
         <div 
           onClick={handleImageClick}
-          className="rounded-2xl overflow-hidden max-h-96 border border-brand-border shadow-soft-xs bg-black/5 relative cursor-pointer group select-none touch-manipulation"
+          className="rounded-2xl overflow-hidden border border-brand-border/60 shadow-soft-xs bg-slate-950/90 dark:bg-black/90 relative cursor-pointer group select-none touch-manipulation flex items-center justify-center max-h-[550px] sm:max-h-[600px] w-full"
         >
+          {/* Facebook-style ambient blurred background for seamless letterboxing */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center blur-2xl opacity-35 scale-110 pointer-events-none"
+            style={{ backgroundImage: `url(${post.imageURL || post.image})` }}
+          />
+
           <img
             src={post.imageURL || post.image}
             alt={`Post by ${authorName}`}
-            className="w-full h-full object-cover max-h-96 group-hover:scale-[1.01] transition-transform duration-300"
+            className="relative z-10 w-full h-auto max-h-[550px] sm:max-h-[600px] object-contain mx-auto group-hover:scale-[1.008] transition-transform duration-300"
             loading="lazy"
           />
           {showHeartOverlay && (

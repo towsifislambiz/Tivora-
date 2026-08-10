@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Send, 
   Loader2, 
@@ -30,9 +30,10 @@ import MessageBubble from './MessageBubble';
 import UserAvatar from '../common/UserAvatar';
 import EmojiPicker from '../common/EmojiPicker';
 import { useCall } from '../../context/CallContext';
+import { subscribeToUserPresence, formatLastSeen } from '../../firebase/presenceService';
 
 export default function ChatWindow({ conversation, onBack, onSelectProfileUsername, onShowToast }) {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
   const { startCall } = useCall();
 
   const [messages, setMessages] = useState([]);
@@ -42,6 +43,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
   const [sending, setSending] = useState(false);
   const [isFriend, setIsFriend] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [partnerPresence, setPartnerPresence] = useState({ isOnline: false, lastSeen: null });
 
   // Messenger Scroll Engine States & Dynamic Composer Height Measurement
   const [isScrolledUp, setIsScrolledUp] = useState(false);
@@ -71,6 +73,15 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
   const partner = conversation?.partner || {};
   const partnerUid = partner.uid || partner.id;
   const isPartnerTyping = convDocData?.typing?.[partnerUid] === true;
+
+  // Real-Time Messenger Presence Listener for Partner
+  useEffect(() => {
+    if (!partnerUid) return;
+    const unsub = subscribeToUserPresence(partnerUid, (presenceData) => {
+      setPartnerPresence(presenceData);
+    });
+    return () => unsub();
+  }, [partnerUid]);
 
   // 1. Measure Dynamic Composer Height via ResizeObserver
   useEffect(() => {
@@ -131,23 +142,28 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
   }, [currentUser?.uid, partnerUid]);
 
   // 4. Messenger Scroll Helper & Handle Scroll Events
-  const scrollToBottom = (smooth = true) => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        top: scrollContainerRef.current.scrollHeight + 300,
-        behavior: smooth ? 'smooth' : 'auto'
-      });
+  const scrollToBottom = useCallback((smooth = true) => {
+    requestAnimationFrame(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: smooth ? 'smooth' : 'auto',
+          block: 'end'
+        });
+      }
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
       setHasUnreadBelow(false);
       setIsScrolledUp(false);
       isNearBottomRef.current = true;
-    }
-  };
+    });
+  }, []);
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-    const isNear = distanceFromBottom <= 140;
+    const isNear = distanceFromBottom <= 100;
 
     isNearBottomRef.current = isNear;
     setIsScrolledUp(!isNear);
@@ -183,7 +199,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
         setHasUnreadBelow(true);
       }
     }
-  }, [messages, currentUser?.uid]);
+  }, [messages, currentUser?.uid, scrollToBottom]);
 
   // Auto-scroll when partner starts typing if near bottom
   useEffect(() => {
@@ -250,9 +266,13 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
     if (inputRef.current) inputRef.current.focus();
   };
 
-  // Handle Send Message
+  // Handle Send Message (Instant Zero-Latency Dispatch)
   const handleSendSubmit = async (e) => {
     e?.preventDefault();
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to message users! 🔒");
+      return;
+    }
     const trimmed = text.trim();
     if (!trimmed || !currentUser?.uid || sending) return;
 
@@ -261,8 +281,15 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
       return;
     }
 
-    setSending(true);
+    const targetText = trimmed;
+    setText('');
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
     setShowEmojiPicker(false);
+    isNearBottomRef.current = true;
+    scrollToBottom(true);
+
     try {
       const actorData = {
         displayName: userDoc?.displayName || currentUser.displayName || 'Tivora User',
@@ -277,18 +304,11 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
       // Clear typing status on send
       setTypingStatus(targetId, currentUser.uid, false);
 
-      await sendMessage(targetId, currentUser.uid, partnerUid, trimmed, actorData);
-      setText('');
-      if (inputRef.current) {
-        inputRef.current.style.height = 'auto';
-      }
+      await sendMessage(targetId, currentUser.uid, partnerUid, targetText, actorData);
       scrollToBottom(true);
-      inputRef.current?.focus();
     } catch (err) {
       console.warn("sendMessage error:", err);
       if (onShowToast) onShowToast(err.message || "Failed to send message.");
-    } finally {
-      setSending(false);
     }
   };
 
@@ -417,6 +437,10 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
 
   // Send Voice Note Recording
   const handleSendVoiceNote = async () => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to send voice notes! 🔒");
+      return;
+    }
     if (!mediaRecorderRef.current || sending) return;
 
     setSending(true);
@@ -490,15 +514,21 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
                 name={partner.displayName}
                 size="w-10 h-10"
                 className="border-2 border-brand-lavender group-hover:scale-105 transition-transform"
+                showStatus={true}
+                isOnline={partnerPresence.isOnline}
               />
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-brand-surface rounded-full shadow-sm" />
             </div>
 
             <div className="min-w-0 flex-1">
               <h4 className="font-bold text-sm text-brand-mainText group-hover:text-brand-purple transition-colors leading-tight truncate">
                 {partner.displayName}
               </h4>
-              <p className="text-[0.7rem] text-brand-mutedText font-medium truncate">@{partner.username} · Active now</p>
+              <p className="text-[0.7rem] font-medium truncate flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${partnerPresence.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                <span className={partnerPresence.isOnline ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-brand-mutedText'}>
+                  @{partner.username} · {formatLastSeen(partnerPresence.isOnline, partnerPresence.lastSeen)}
+                </span>
+              </p>
             </div>
           </div>
         </div>
@@ -591,11 +621,8 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
           </div>
         )}
 
-        {/* 💬 Dynamic Messenger Scroll Spacer (Calculates Composer Height + 24px Breathing Room) */}
-        <div 
-          style={{ height: `${Math.max(composerHeight, 60) + 16}px`, flexShrink: 0 }} 
-          aria-hidden="true" 
-        />
+        {/* 💬 Messenger Bottom Padding Spacer */}
+        <div className="h-4 shrink-0" aria-hidden="true" />
         <div ref={messagesEndRef} />
       </div>
 
