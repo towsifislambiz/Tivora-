@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import UserAvatar from '../common/UserAvatar';
-import { Search, Plus, MessageSquare, Bell, LogOut, User, Settings, RefreshCw, AlertCircle, CheckCheck, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Search, Plus, MessageSquare, Bell, LogOut, User, Settings, RefreshCw, AlertCircle, CheckCheck, ExternalLink, ShieldCheck, Smartphone } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserByUsername } from '../../firebase/profileService';
 import { normalizeUsername } from '../../utils/usernameValidator';
@@ -14,7 +14,7 @@ import NotificationItem from '../notifications/NotificationItem';
 import ThemeToggle from '../ui/ThemeToggle';
 import { formatPostTime } from '../feed/PostCard';
 
-export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectProfileUsername, onSelectPostId, onShowToast }) {
+export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectProfileUsername, onSelectPostId, onShowToast, onOpenInstallModal }) {
   const { currentUser, userDoc, logout } = useAuth();
 
   const [showMenu, setShowMenu] = useState(false);
@@ -358,6 +358,16 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
           )}
         </div>
 
+        {/* Mobile App Install Button */}
+        <button
+          onClick={() => onOpenInstallModal && onOpenInstallModal()}
+          className="w-10 h-10 rounded-full bg-primary-gradient text-white flex items-center justify-center relative shadow-gradient-glow hover:scale-105 active:scale-95 transition-transform shrink-0"
+          title="Get Tivora Mobile App"
+          aria-label="Get Tivora Mobile App"
+        >
+          <Smartphone className="w-4 h-4" />
+        </button>
+
         {/* Real-time Notifications Dropdown & Badge */}
         <div className="relative" ref={notifRef}>
           <button
@@ -484,6 +494,17 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
                     <span>Admin Moderation</span>
                   </button>
                 )}
+
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    if (onOpenInstallModal) onOpenInstallModal();
+                  }}
+                  className="w-full px-4 py-2 text-left text-xs font-bold text-brand-purple hover:bg-brand-purple/10 flex items-center gap-2.5 transition-colors"
+                >
+                  <Smartphone className="w-4 h-4 text-brand-purple" />
+                  <span>Get Mobile App 📱</span>
+                </button>
 
                 <div className="border-t border-brand-border my-1" />
 

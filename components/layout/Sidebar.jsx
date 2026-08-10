@@ -9,12 +9,13 @@ import {
   BookmarkCheck, 
   Shield,
   Settings,
-  Plus 
+  Plus,
+  Smartphone
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtime } from '../../hooks/useRealtime';
 
-export default function Sidebar({ activeScreen, setActiveScreen, onShowToast }) {
+export default function Sidebar({ activeScreen, setActiveScreen, onShowToast, onOpenInstallModal }) {
   const { userDoc } = useAuth();
   const { unreadNotifCount, unreadMsgCount } = useRealtime();
 
@@ -108,6 +109,17 @@ export default function Sidebar({ activeScreen, setActiveScreen, onShowToast }) 
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
           <span>Browse Groups</span>
+        </button>
+      </div>
+
+      {/* Get Mobile App Button */}
+      <div className="mt-4 pt-4 border-t border-brand-border">
+        <button
+          onClick={onOpenInstallModal}
+          className="w-full py-2.5 px-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-soft-sm transition-all hover:scale-[1.02]"
+        >
+          <Smartphone className="w-4 h-4" />
+          <span>Get Tivora App 📱</span>
         </button>
       </div>
     </aside>
