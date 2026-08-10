@@ -318,7 +318,7 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
   };
 
   return (
-    <div className="bg-brand-surface rounded-3xl p-6 border border-brand-border shadow-soft-sm space-y-4 relative">
+    <div className="bg-brand-surface rounded-3xl p-4 sm:p-6 border border-brand-border shadow-soft-sm space-y-4 relative overflow-hidden">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3.5 cursor-pointer group" onClick={handleAuthorClick}>
           <UserAvatar
@@ -410,44 +410,46 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
         </div>
       </div>
 
-      <div className="flex items-center justify-around pt-1">
+      <div className="flex items-center justify-between gap-1 sm:gap-2 pt-1 min-w-0">
         <button
           onClick={handleToggleLike}
           disabled={actionPending}
-          className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[48px] touch-manipulation ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[44px] sm:min-h-[48px] touch-manipulation ${
             isLiked ? 'text-brand-pink bg-brand-pink/10' : 'text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple'
           }`}
         >
-          <Heart className={`w-4 h-4 ${isLiked ? 'fill-brand-pink text-brand-pink' : ''}`} />
+          <Heart className={`w-4 h-4 shrink-0 ${isLiked ? 'fill-brand-pink text-brand-pink' : ''}`} />
           <span>{isLiked ? 'Liked' : 'Like'}</span>
         </button>
 
         <button
           onClick={() => setShowComments(!showComments)}
-          className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[48px] touch-manipulation ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[44px] sm:min-h-[48px] touch-manipulation ${
             showComments ? 'text-brand-purple bg-brand-purple/10' : 'text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple'
           }`}
         >
-          <MessageCircle className="w-4 h-4" />
+          <MessageCircle className="w-4 h-4 shrink-0" />
           <span>Comment</span>
         </button>
 
         <button
           onClick={handleShareClick}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple transition-all min-h-[48px] touch-manipulation"
+          className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple transition-all min-h-[44px] sm:min-h-[48px] touch-manipulation"
         >
-          <Share2 className="w-4 h-4" />
+          <Share2 className="w-4 h-4 shrink-0" />
           <span>Share</span>
         </button>
 
         <button
           onClick={handleToggleSave}
           disabled={actionPending}
-          className={`flex items-center justify-center p-3 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[48px] min-w-[48px] touch-manipulation ${
+          className={`flex items-center justify-center p-2.5 sm:p-3 rounded-xl text-xs sm:text-sm font-semibold transition-all min-h-[44px] min-w-[44px] sm:min-h-[48px] sm:min-w-[48px] shrink-0 touch-manipulation ${
             isSaved ? 'text-brand-purple bg-brand-purple/10' : 'text-brand-mutedText hover:bg-brand-lavender hover:text-brand-purple'
           }`}
+          title={isSaved ? "Saved" : "Save Post"}
+          aria-label="Save post"
         >
-          <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-brand-purple text-brand-purple' : ''}`} />
+          <Bookmark className={`w-4 h-4 shrink-0 ${isSaved ? 'fill-brand-purple text-brand-purple' : ''}`} />
         </button>
       </div>
 

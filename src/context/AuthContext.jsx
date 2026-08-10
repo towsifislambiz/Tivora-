@@ -12,6 +12,7 @@ import {
 } from "../firebase/auth";
 import { getUserDocument } from "../firebase/firestore";
 import { generateUniqueUsername, reserveUsernameAndCreateProfile, updateUserProfile } from "../firebase/profileService";
+import { initPresenceTracker } from "../firebase/presenceService";
 
 export const AuthContext = createContext(null);
 
@@ -28,6 +29,8 @@ export function AuthProvider({ children }) {
   );
 
   useEffect(() => {
+    let cleanupPresence = null;
+
     // Safety max timeout to prevent any stuck splash loader screen
     const maxTimeout = setTimeout(() => {
       setLoading(false);
@@ -37,6 +40,10 @@ export function AuthProvider({ children }) {
       if (user) {
         setCurrentUser(user);
         
+        // Initialize Real-Time Messenger Presence Heartbeat
+        if (cleanupPresence) cleanupPresence();
+        cleanupPresence = initPresenceTracker(user.uid);
+
         // 1. Immediately load local persistent cache if available
         const localCacheKey = `${STORAGE_KEY_PREFIX}${user.uid}`;
         const cachedStr = localStorage.getItem(localCacheKey);
@@ -82,6 +89,7 @@ export function AuthProvider({ children }) {
           console.error("Error fetching user document from Firestore:", err);
         }
       } else {
+        if (cleanupPresence) cleanupPresence();
         setCurrentUser(null);
         setUserDoc(null);
         setLoading(false);
@@ -91,6 +99,7 @@ export function AuthProvider({ children }) {
 
     return () => {
       clearTimeout(maxTimeout);
+      if (cleanupPresence) cleanupPresence();
       unsubscribe();
     };
   }, []);

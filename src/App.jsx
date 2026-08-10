@@ -253,7 +253,13 @@ function MainAppContent() {
           />
         );
       case 'messages':
-        return <Messages onSelectProfileUsername={handleSelectProfileUsername} onShowToast={showToast} />;
+        return (
+          <Messages 
+            setActiveScreen={handleNavigateScreen}
+            onSelectProfileUsername={handleSelectProfileUsername} 
+            onShowToast={showToast} 
+          />
+        );
       case 'notifications':
         return (
           <Notifications

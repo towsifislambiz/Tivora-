@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Search, Loader2 } from 'lucide-react';
+import { MessageSquare, Search, Loader2, ArrowLeft, Home } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { 
   subscribeToUserConversations, 
@@ -10,7 +10,7 @@ import { getUserByUsername } from '../firebase/profileService';
 import ConversationList from '../components/messaging/ConversationList';
 import ChatWindow from '../components/messaging/ChatWindow';
 
-export default function Messages({ onSelectProfileUsername, onShowToast }) {
+export default function Messages({ setActiveScreen, onSelectProfileUsername, onShowToast }) {
   const { currentUser } = useAuth();
 
   const [conversations, setConversations] = useState([]);
@@ -145,16 +145,43 @@ export default function Messages({ onSelectProfileUsername, onShowToast }) {
       } w-full md:w-[300px] lg:w-[340px]`}>
 
         {/* Left Panel Header */}
-        <div className="px-5 pt-5 pb-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-brand-mainText flex items-center gap-2">
-              <span>Messenger</span>
-              {conversations.filter(c => c.isUnread).length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-brand-pink text-white text-[0.68rem] font-bold">
-                  {conversations.filter(c => c.isUnread).length}
-                </span>
-              )}
-            </h2>
+        <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.hash = '#home';
+                  if (setActiveScreen) setActiveScreen('home');
+                }}
+                className="p-1.5 -ml-1 rounded-full hover:bg-brand-lavender text-brand-mainText hover:text-brand-purple transition-colors flex items-center justify-center shrink-0 group"
+                title="Back to Home Feed"
+                aria-label="Back to Home Feed"
+              >
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+              </button>
+              <h2 className="text-lg font-bold text-brand-mainText flex items-center gap-2 truncate">
+                <span>Messenger</span>
+                {conversations.filter(c => c.isUnread).length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-brand-pink text-white text-[0.68rem] font-bold shrink-0">
+                    {conversations.filter(c => c.isUnread).length}
+                  </span>
+                )}
+              </h2>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.location.hash = '#home';
+                if (setActiveScreen) setActiveScreen('home');
+              }}
+              className="px-3 py-1.5 rounded-full bg-brand-purple/10 text-brand-purple hover:bg-brand-purple hover:text-white transition-all text-xs font-bold flex items-center gap-1.5 shadow-soft-xs shrink-0"
+              title="Return to Home Feed"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </button>
           </div>
 
           {/* Search within chats */}

@@ -25,17 +25,18 @@ export default function GlassDock({ activeScreen, setActiveScreen, onOpenCreateM
   ];
 
   return (
-    <GlassSurface
-      className="fixed bottom-6 inset-x-0 h-20 z-40 hidden lg:block"
-      cornerRadius={32}
-      padding="8px 12px"
-      displacementScale={72}
-      blurAmount={0.45}
-      saturation={170}
-      aberrationIntensity={2.4}
-      elasticity={0.22}
-      mode="standard"
-    >
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 hidden lg:block pointer-events-none">
+      <GlassSurface
+        className="pointer-events-auto"
+        cornerRadius={32}
+        padding="8px 12px"
+        displacementScale={72}
+        blurAmount={0.45}
+        saturation={170}
+        aberrationIntensity={2.4}
+        elasticity={0.22}
+        mode="standard"
+      >
       <nav className="flex items-center gap-1.5" role="navigation" aria-label="Quick dock">
         {items.map((item) => {
           if (item.isFab) {
@@ -89,5 +90,6 @@ export default function GlassDock({ activeScreen, setActiveScreen, onOpenCreateM
         })}
       </nav>
     </GlassSurface>
+    </div>
   );
 }

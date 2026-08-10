@@ -10,7 +10,7 @@ import React, { useState } from 'react';
  * @param {string}      [className] - Extra classes to add to the root element
  * @param {Function}    [onClick]   - Click handler
  */
-export default function UserAvatar({ src, name, size = 'w-10 h-10', className = '', onClick }) {
+export default function UserAvatar({ src, name, size = 'w-10 h-10', className = '', onClick, showStatus = false, isOnline = false }) {
   const [imgError, setImgError] = useState(false);
 
   const initials = getInitials(name);
@@ -18,31 +18,49 @@ export default function UserAvatar({ src, name, size = 'w-10 h-10', className = 
 
   const baseClass = `${size} rounded-full object-cover flex-shrink-0 ${className}`;
 
+  const renderBadge = () => {
+    if (!showStatus) return null;
+    return (
+      <span 
+        className={`absolute bottom-0 right-0 rounded-full border-2 border-brand-surface ${
+          size.includes('w-6') || size.includes('w-7') || size.includes('w-8') ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'
+        } ${isOnline ? 'bg-emerald-500 shadow-sm animate-pulse' : 'bg-slate-400'}`} 
+        title={isOnline ? 'Active now' : 'Offline'}
+      />
+    );
+  };
+
   if (src && !imgError) {
     return (
-      <img
-        src={src}
-        alt={name ? `${name}'s profile photo` : 'Profile photo'}
-        className={`${baseClass} border-2 border-brand-border`}
-        loading="lazy"
-        decoding="async"
-        onError={() => setImgError(true)}
-        onClick={onClick}
-        style={onClick ? { cursor: 'pointer' } : undefined}
-      />
+      <div className="relative inline-block shrink-0">
+        <img
+          src={src}
+          alt={name ? `${name}'s profile photo` : 'Profile photo'}
+          className={`${baseClass} border-2 border-brand-border`}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgError(true)}
+          onClick={onClick}
+          style={onClick ? { cursor: 'pointer' } : undefined}
+        />
+        {renderBadge()}
+      </div>
     );
   }
 
   // Facebook-style gradient initials avatar
   return (
-    <div
-      className={`${baseClass} ${colorClass} flex items-center justify-center font-bold text-white select-none`}
-      onClick={onClick}
-      style={onClick ? { cursor: 'pointer' } : undefined}
-      aria-label={name ? `${name}'s profile picture` : 'Profile picture'}
-      role={onClick ? 'button' : undefined}
-    >
-      <span style={{ fontSize: getFontSize(size) }}>{initials}</span>
+    <div className="relative inline-block shrink-0">
+      <div
+        className={`${baseClass} ${colorClass} flex items-center justify-center font-bold text-white select-none`}
+        onClick={onClick}
+        style={onClick ? { cursor: 'pointer' } : undefined}
+        aria-label={name ? `${name}'s profile picture` : 'Profile picture'}
+        role={onClick ? 'button' : undefined}
+      >
+        <span style={{ fontSize: getFontSize(size) }}>{initials}</span>
+      </div>
+      {renderBadge()}
     </div>
   );
 }

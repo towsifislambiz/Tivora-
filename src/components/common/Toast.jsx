@@ -37,20 +37,20 @@ export default function Toast({ toastMessage, type = 'success' }) {
       aria-live="polite"
       aria-atomic="true"
       className={`fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[9999] max-w-sm w-auto transition-all duration-300 ease-out ${
-        toastMessage ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+        toastMessage ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95 pointer-events-none'
       }`}
     >
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-soft-lg border text-sm font-semibold ${
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border text-xs sm:text-sm font-semibold backdrop-blur-xl transition-all ${
         isError
-          ? 'bg-red-600 text-white border-red-700'
-          : 'bg-brand-mainText text-white border-white/10'
+          ? 'bg-rose-600/95 text-white border-rose-500/80 shadow-rose-900/30'
+          : 'bg-slate-900/95 text-white border-slate-700/80 shadow-black/50'
       }`}>
         {isError ? (
-          <AlertCircle className="w-4 h-4 shrink-0 text-red-200" aria-hidden="true" />
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-300" aria-hidden="true" />
         ) : (
-          <CheckCircle className="w-4 h-4 shrink-0 text-emerald-300" aria-hidden="true" />
+          <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" aria-hidden="true" />
         )}
-        <span className="leading-snug">{toastMessage}</span>
+        <span className="leading-snug text-white font-medium">{toastMessage}</span>
       </div>
     </div>
   );

@@ -30,6 +30,7 @@ import MessageBubble from './MessageBubble';
 import UserAvatar from '../common/UserAvatar';
 import EmojiPicker from '../common/EmojiPicker';
 import { useCall } from '../../context/CallContext';
+import { subscribeToUserPresence, formatLastSeen } from '../../firebase/presenceService';
 
 export default function ChatWindow({ conversation, onBack, onSelectProfileUsername, onShowToast }) {
   const { currentUser, userDoc } = useAuth();
@@ -42,6 +43,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
   const [sending, setSending] = useState(false);
   const [isFriend, setIsFriend] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [partnerPresence, setPartnerPresence] = useState({ isOnline: false, lastSeen: null });
 
   // Messenger Scroll Engine States & Dynamic Composer Height Measurement
   const [isScrolledUp, setIsScrolledUp] = useState(false);
@@ -71,6 +73,15 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
   const partner = conversation?.partner || {};
   const partnerUid = partner.uid || partner.id;
   const isPartnerTyping = convDocData?.typing?.[partnerUid] === true;
+
+  // Real-Time Messenger Presence Listener for Partner
+  useEffect(() => {
+    if (!partnerUid) return;
+    const unsub = subscribeToUserPresence(partnerUid, (presenceData) => {
+      setPartnerPresence(presenceData);
+    });
+    return () => unsub();
+  }, [partnerUid]);
 
   // 1. Measure Dynamic Composer Height via ResizeObserver
   useEffect(() => {
@@ -495,15 +506,21 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
                 name={partner.displayName}
                 size="w-10 h-10"
                 className="border-2 border-brand-lavender group-hover:scale-105 transition-transform"
+                showStatus={true}
+                isOnline={partnerPresence.isOnline}
               />
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-brand-surface rounded-full shadow-sm" />
             </div>
 
             <div className="min-w-0 flex-1">
               <h4 className="font-bold text-sm text-brand-mainText group-hover:text-brand-purple transition-colors leading-tight truncate">
                 {partner.displayName}
               </h4>
-              <p className="text-[0.7rem] text-brand-mutedText font-medium truncate">@{partner.username} · Active now</p>
+              <p className="text-[0.7rem] font-medium truncate flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${partnerPresence.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                <span className={partnerPresence.isOnline ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-brand-mutedText'}>
+                  @{partner.username} · {formatLastSeen(partnerPresence.isOnline, partnerPresence.lastSeen)}
+                </span>
+              </p>
             </div>
           </div>
         </div>

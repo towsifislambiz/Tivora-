@@ -86,7 +86,7 @@ export default function GlassSurface({
     return (
       <div className={`pointer-events-none ${className}`} {...rest}>
         <div
-          className={`glass-pane pointer-events-auto relative ${centered} ${contentClassName}`}
+          className={`glass-pane pointer-events-auto relative w-max max-w-[95vw] shadow-soft-lg ${contentClassName}`}
           style={{ borderRadius: `${cornerRadius}px`, padding, ...style }}
           onClick={onClick}
           role={onClick ? 'button' : undefined}
