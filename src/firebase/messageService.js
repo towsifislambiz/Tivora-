@@ -175,20 +175,6 @@ export async function sendMessage(conversationId, senderId, receiverId, text, ac
     }
   }, { merge: true });
 
-  // Non-blocking notification dispatch
-  createNotification({
-    id: `message_${messageId}`,
-    recipientId: receiverId,
-    actorId: senderId,
-    actorDisplayName: actorData.displayName || "Tivora User",
-    actorUsername: actorData.username || "user",
-    actorPhotoURL: actorData.photoURL || "",
-    type: "message",
-    message: "sent you a message.",
-    relatedId: canonicalConvId,
-    postId: null
-  }).catch(() => {});
-
   await Promise.all([writeMessagePromise, updateConvPromise]);
 
   return {
@@ -293,28 +279,40 @@ export function subscribeToUserConversations(uid, callback) {
         const partnerUid = conv.participantA === uid ? conv.participantB : conv.participantA;
         const partnerProfile = await getUserDocument(partnerUid);
 
-        // Fetch actual latest message from messages subcollection (guarantees call logs & recent texts update sidebar)
+        // Fetch actual latest message from messages subcollection (guarantees call logs, voice notes & text messages update sidebar)
         try {
-          const latestMsgQuery = query(
-            collection(db, CONVERSATIONS_COLLECTION, conv.id, "messages"),
-            orderBy("createdAt", "desc"),
-            limit(1)
-          );
-          const latestMsgSnap = await getDocs(latestMsgQuery);
-          if (!latestMsgSnap.empty) {
-            const latestMsg = latestMsgSnap.docs[0].data();
-            if (latestMsg.text) {
-              conv.lastMessage = latestMsg.text;
-            }
-            if (latestMsg.createdAt) {
-              conv.lastMessageAt = latestMsg.createdAt;
-            }
-            if (latestMsg.senderId) {
-              conv.lastMessageSenderId = latestMsg.senderId;
+          const messagesSnap = await getDocs(collection(db, CONVERSATIONS_COLLECTION, conv.id, "messages"));
+          if (!messagesSnap.empty) {
+            const msgs = messagesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const getMs = (val) => {
+              if (!val) return 0;
+              if (val.toDate && typeof val.toDate === 'function') return val.toDate().getTime();
+              if (typeof val === 'object' && val.seconds) return val.seconds * 1000;
+              return new Date(val).getTime() || 0;
+            };
+            msgs.sort((a, b) => getMs(b.createdAt || b.updatedAt) - getMs(a.createdAt || a.updatedAt));
+            const latestMsg = msgs[0];
+            if (latestMsg) {
+              if (latestMsg.type === 'voice') {
+                conv.lastMessage = "🎤 Voice Message";
+              } else if (latestMsg.type === 'call') {
+                const icon = latestMsg.callType === 'video' ? '📹' : '📞';
+                conv.lastMessage = latestMsg.text?.startsWith('📹') || latestMsg.text?.startsWith('📞')
+                  ? latestMsg.text
+                  : `${icon} ${latestMsg.text || 'Call'}`;
+              } else if (latestMsg.text) {
+                conv.lastMessage = latestMsg.text;
+              }
+              if (latestMsg.createdAt) {
+                conv.lastMessageAt = latestMsg.createdAt;
+              }
+              if (latestMsg.senderId) {
+                conv.lastMessageSenderId = latestMsg.senderId;
+              }
             }
           }
         } catch (msgErr) {
-          // Fallback to conv document fields if index or query notice occurs
+          console.warn("Notice resolving latest message for conversation:", msgErr);
         }
 
         const lastReadTime = conv.lastMessageReadBy?.[uid];
@@ -502,6 +500,7 @@ export async function sendVoiceMessage(conversationId, senderId, receiverId, aud
   const messageId = messageRef.id;
 
   const [participantA, participantB] = [senderId, receiverId].sort();
+  const nowTimestamp = Timestamp.now();
   const nowIso = new Date().toISOString();
 
   const messageData = {
@@ -515,8 +514,8 @@ export async function sendVoiceMessage(conversationId, senderId, receiverId, aud
     duration: Math.round(duration || 0),
     isEdited: false,
     isDeleted: false,
-    createdAt: nowIso,
-    updatedAt: nowIso
+    createdAt: nowTimestamp,
+    updatedAt: nowTimestamp
   };
 
   const writeMessagePromise = setDoc(messageRef, messageData);
@@ -527,31 +526,14 @@ export async function sendVoiceMessage(conversationId, senderId, receiverId, aud
     participantB,
     lastMessage: "🎤 Voice Message",
     lastMessageSenderId: senderId,
-    lastMessageAt: nowIso,
-    updatedAt: nowIso,
+    lastMessageAt: nowTimestamp,
+    updatedAt: nowTimestamp,
     lastMessageReadBy: {
       [senderId]: nowIso
     }
   }, { merge: true });
 
   await Promise.all([writeMessagePromise, updateConvPromise]);
-
-  // Create real-time notification
-  try {
-    const senderName = actorData.displayName || "Someone";
-    await createNotification({
-      recipientId: receiverId,
-      actorId: senderId,
-      actorDisplayName: senderName,
-      actorUsername: actorData.username || "user",
-      actorPhotoURL: actorData.photoURL || "",
-      type: "message",
-      targetId: canonicalConvId,
-      previewText: `${senderName} sent you a voice message.`
-    });
-  } catch (err) {
-    console.warn("createNotification for voice note error:", err);
-  }
 
   return messageId;
 }

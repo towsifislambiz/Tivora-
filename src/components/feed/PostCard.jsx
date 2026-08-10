@@ -93,7 +93,7 @@ export function formatMessageTime(timestamp) {
 }
 
 export default function PostCard({ post, onSelectProfileUsername, onShowToast, onPostUpdated, onPostDeleted }) {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
 
   // Interaction States
   const [isLiked, setIsLiked] = useState(false);
@@ -174,6 +174,10 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
   }, []);
 
   const handleToggleLike = async () => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to interact! 🔒");
+      return;
+    }
     if (!currentUser?.uid || !post?.id || actionPending) return;
 
     const prevLiked = isLiked;
@@ -187,7 +191,11 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
       if (prevLiked) {
         await unlikePost(post.id, currentUser.uid);
       } else {
-        await likePost(post.id, currentUser.uid);
+        await likePost(post.id, currentUser.uid, {
+          displayName: userDoc?.displayName || currentUser.displayName || 'Tivora User',
+          username: userDoc?.username || 'user',
+          photoURL: userDoc?.photoURL || currentUser.photoURL || ''
+        });
       }
     } catch (err) {
       setIsLiked(prevLiked);
@@ -242,6 +250,10 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
 
   const handleAddCommentSubmit = async (e) => {
     e?.preventDefault();
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to comment! 🔒");
+      return;
+    }
     if (!commentText.trim() || !currentUser?.uid || submittingComment) return;
 
     setSubmittingComment(true);

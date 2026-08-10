@@ -33,7 +33,7 @@ import { useCall } from '../../context/CallContext';
 import { subscribeToUserPresence, formatLastSeen } from '../../firebase/presenceService';
 
 export default function ChatWindow({ conversation, onBack, onSelectProfileUsername, onShowToast }) {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
   const { startCall } = useCall();
 
   const [messages, setMessages] = useState([]);
@@ -269,6 +269,10 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
   // Handle Send Message (Instant Zero-Latency Dispatch)
   const handleSendSubmit = async (e) => {
     e?.preventDefault();
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to message users! 🔒");
+      return;
+    }
     const trimmed = text.trim();
     if (!trimmed || !currentUser?.uid || sending) return;
 
@@ -433,6 +437,10 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
 
   // Send Voice Note Recording
   const handleSendVoiceNote = async () => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to send voice notes! 🔒");
+      return;
+    }
     if (!mediaRecorderRef.current || sending) return;
 
     setSending(true);

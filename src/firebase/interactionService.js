@@ -55,7 +55,7 @@ export async function likePost(postId, uid, actorData = {}) {
     }
 
     const postData = postSnap.data();
-    targetAuthorId = postData.authorId;
+    targetAuthorId = postData.authorId || postData.author?.uid;
     const currentLikes = postData.likeCount || 0;
 
     transaction.set(likeRef, {
@@ -213,7 +213,7 @@ export async function addComment(postId, author, text) {
     if (!postSnap.exists()) throw new Error("Post does not exist.");
 
     const postData = postSnap.data();
-    targetAuthorId = postData.authorId;
+    targetAuthorId = postData.authorId || postData.author?.uid;
     const currentComments = postData.commentCount || 0;
 
     transaction.set(commentRef, commentData);

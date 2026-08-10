@@ -10,7 +10,7 @@ const MAX_CHARS = 2200;
 const COUNTER_VISIBLE_FROM = MAX_CHARS - 300;
 
 export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShowToast }) {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
 
   const [text, setText] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState(null);
@@ -109,6 +109,10 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
   };
 
   const handleSubmit = async () => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to publish posts! 🔒");
+      return;
+    }
     setError('');
     const trimmedText = text.trim();
 

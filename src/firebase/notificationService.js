@@ -12,7 +12,8 @@ import {
   startAfter,
   onSnapshot,
   writeBatch,
-  serverTimestamp
+  serverTimestamp,
+  Timestamp
 } from "firebase/firestore";
 import { db } from "./FirebaseConfig";
 
@@ -53,6 +54,8 @@ export async function createNotification(data) {
       ? doc(db, NOTIFICATIONS_COLLECTION, customId) 
       : doc(collection(db, NOTIFICATIONS_COLLECTION));
 
+    const nowTimestamp = Timestamp.now();
+
     const finalDoc = {
       id: notifRef.id,
       recipientId: data.recipientId,
@@ -66,7 +69,7 @@ export async function createNotification(data) {
       postId: data.postId || null,
       commentId: data.commentId || null,
       isRead: false,
-      createdAt: serverTimestamp()
+      createdAt: nowTimestamp
     };
 
     await setDoc(notifRef, finalDoc, { merge: true });
@@ -89,8 +92,7 @@ export function subscribeToUserNotifications(uid, callback) {
   const q = query(
     notifRef,
     where("recipientId", "==", uid),
-    orderBy("createdAt", "desc"),
-    limit(20)
+    limit(30)
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -99,9 +101,21 @@ export function subscribeToUserNotifications(uid, callback) {
 
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      notifications.push({ ...data, id: docSnap.id });
-      if (!data.isRead) unreadCount++;
+      // Facebook rule: Chat messages belong in Messenger, NOT in Notification Bell box
+      if (data.type !== "message" && data.type !== "chat") {
+        notifications.push({ ...data, id: docSnap.id });
+        if (!data.isRead) unreadCount++;
+      }
     });
+
+    const getMs = (val) => {
+      if (!val) return 0;
+      if (val.toDate && typeof val.toDate === 'function') return val.toDate().getTime();
+      if (typeof val === 'object' && val.seconds) return val.seconds * 1000;
+      return new Date(val).getTime() || 0;
+    };
+
+    notifications.sort((a, b) => getMs(b.createdAt) - getMs(a.createdAt));
 
     callback({ notifications, unreadCount });
   }, (err) => {
@@ -166,8 +180,11 @@ export async function getUserNotifications(uid, limitCount = 20, lastDocSnap = n
     let newLastDoc = null;
 
     snap.forEach((docSnap) => {
-      notifications.push({ ...docSnap.data(), id: docSnap.id });
-      newLastDoc = docSnap;
+      const data = docSnap.data();
+      if (data.type !== "message" && data.type !== "chat") {
+        notifications.push({ ...data, id: docSnap.id });
+        newLastDoc = docSnap;
+      }
     });
 
     return { notifications, lastDocSnap: newLastDoc };

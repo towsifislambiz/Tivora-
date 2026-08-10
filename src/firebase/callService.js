@@ -10,7 +10,8 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
-  addDoc
+  addDoc,
+  Timestamp
 } from "firebase/firestore";
 import { db } from "./FirebaseConfig";
 import { sendMessage, getCanonicalConversationId } from "./messageService";
@@ -209,6 +210,7 @@ export async function recordCallHistory(callData) {
     const messageDocId = `call_log_${callData.callId}`;
     const messageRef = doc(db, "conversations", callData.conversationId, "messages", messageDocId);
     const callTypeStr = callData.type === 'video' ? 'Video Call' : 'Voice Call';
+    const icon = callData.type === 'video' ? '📹' : '📞';
     let durationText = '';
 
     if (callData.duration && callData.duration > 0) {
@@ -217,20 +219,22 @@ export async function recordCallHistory(callData) {
       durationText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
 
-    let statusLabel = 'Call';
+    let statusLabel = `${icon} ${callTypeStr}`;
     if (callData.status === 'completed' || callData.status === 'ended') {
-      statusLabel = durationText ? `${callTypeStr} · ${durationText}` : callTypeStr;
+      statusLabel = durationText ? `${icon} ${callTypeStr} · ${durationText}` : `${icon} ${callTypeStr}`;
     } else if (callData.status === 'missed') {
-      statusLabel = `Missed ${callTypeStr}`;
+      statusLabel = `${icon} Missed ${callTypeStr}`;
     } else if (callData.status === 'rejected') {
-      statusLabel = `${callTypeStr} Declined`;
+      statusLabel = `${icon} ${callTypeStr} Declined`;
     } else if (callData.status === 'busy') {
-      statusLabel = `User Busy (${callTypeStr})`;
+      statusLabel = `${icon} User Busy (${callTypeStr})`;
     } else if (callData.status === 'cancelled') {
-      statusLabel = `Cancelled ${callTypeStr}`;
+      statusLabel = `${icon} Cancelled ${callTypeStr}`;
     } else {
-      statusLabel = `${callTypeStr} (${callData.status})`;
+      statusLabel = `${icon} ${callTypeStr}`;
     }
+
+    const nowTimestamp = Timestamp.now();
 
     await setDoc(messageRef, {
       id: messageDocId,
@@ -242,8 +246,8 @@ export async function recordCallHistory(callData) {
       senderId: callData.callerId,
       receiverId: callData.receiverId,
       text: statusLabel,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: nowTimestamp,
+      updatedAt: nowTimestamp,
       readBy: [callData.callerId]
     }, { merge: true });
 
@@ -252,8 +256,8 @@ export async function recordCallHistory(callData) {
     await setDoc(convRef, {
       lastMessage: statusLabel,
       lastMessageSenderId: callData.callerId,
-      lastMessageAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      lastMessageAt: nowTimestamp,
+      updatedAt: nowTimestamp,
       lastMessageReadBy: {
         [callData.callerId]: new Date().toISOString()
       },

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Loader2, Filter } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, CheckCheck, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useRealtime } from '../hooks/useRealtime';
 import { 
-  getUserNotifications, 
   markNotificationAsRead, 
   markAllNotificationsAsRead 
 } from '../firebase/notificationService';
@@ -10,72 +10,30 @@ import NotificationItem from '../components/notifications/NotificationItem';
 
 export default function Notifications({ onSelectProfileUsername, onSelectPostId, setActiveScreen, onShowToast }) {
   const { currentUser } = useAuth();
+  const { 
+    notifications: liveNotifications, 
+    markNotificationRead, 
+    markAllNotificationsRead 
+  } = useRealtime();
 
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'unread'
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [lastDocSnap, setLastDocSnap] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
 
-  useEffect(() => {
-    async function loadNotifications() {
-      if (!currentUser?.uid) return;
-      setLoading(true);
-      const isUnreadFilter = activeTab === 'unread';
-
-      const { notifications: fetched, lastDocSnap: newLastDoc } = await getUserNotifications(
-        currentUser.uid, 
-        20, 
-        null, 
-        isUnreadFilter
-      );
-
-      setNotifications(fetched);
-      setLastDocSnap(newLastDoc);
-      setHasMore(Boolean(fetched.length >= 20));
-      setLoading(false);
-    }
-
-    loadNotifications();
-  }, [currentUser?.uid, activeTab]);
-
-  const handleLoadMore = async () => {
-    if (!lastDocSnap || loadingMore || !currentUser?.uid) return;
-    setLoadingMore(true);
-    const isUnreadFilter = activeTab === 'unread';
-
-    const { notifications: newNotifs, lastDocSnap: nextLastDoc } = await getUserNotifications(
-      currentUser.uid, 
-      20, 
-      lastDocSnap, 
-      isUnreadFilter
-    );
-
-    if (newNotifs.length > 0) {
-      setNotifications(prev => [...prev, ...newNotifs]);
-      setLastDocSnap(nextLastDoc);
-      if (newNotifs.length < 20) setHasMore(false);
-    } else {
-      setHasMore(false);
-    }
-    setLoadingMore(false);
-  };
+  // Filter notifications based on active tab ('all' vs 'unread') & exclude chat messages
+  const displayNotifications = (liveNotifications || [])
+    .filter(n => n.type !== 'message' && n.type !== 'chat')
+    .filter(n => activeTab === 'all' || !n.isRead);
 
   const handleNotificationClick = async (notif) => {
     if (!currentUser?.uid) return;
 
     if (!notif.isRead) {
       markNotificationAsRead(notif.id, currentUser.uid);
-      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+      markNotificationRead(notif.id);
     }
 
-    // Navigate to target URL or profile/post/chat
-    if (notif.type === 'message' || notif.type === 'chat') {
-      window.location.hash = `#messages?user=${notif.actorUsername}`;
-      if (setActiveScreen) setActiveScreen('messages');
-    } else if (notif.postId) {
+    // Navigate to target URL or profile/post
+    if (notif.postId) {
       if (onSelectPostId) onSelectPostId(notif.postId);
       if (setActiveScreen) setActiveScreen('post_detail');
       window.location.hash = `#post/${notif.postId}`;
@@ -92,7 +50,7 @@ export default function Notifications({ onSelectProfileUsername, onSelectPostId,
 
     try {
       await markAllNotificationsAsRead(currentUser.uid);
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      markAllNotificationsRead();
       if (onShowToast) onShowToast("All notifications marked as read! 🔔");
     } catch (err) {
       if (onShowToast) onShowToast("Failed to mark all as read.");
@@ -136,7 +94,7 @@ export default function Notifications({ onSelectProfileUsername, onSelectPostId,
                 : 'bg-brand-lavender text-brand-mutedText hover:text-brand-purple'
             }`}
           >
-            All
+            All ({liveNotifications.filter(n => n.type !== 'message' && n.type !== 'chat').length})
           </button>
           <button
             onClick={() => setActiveTab('unread')}
@@ -146,25 +104,13 @@ export default function Notifications({ onSelectProfileUsername, onSelectPostId,
                 : 'bg-brand-lavender text-brand-mutedText hover:text-brand-purple'
             }`}
           >
-            Unread
+            Unread ({liveNotifications.filter(n => n.type !== 'message' && n.type !== 'chat' && !n.isRead).length})
           </button>
         </div>
       </div>
 
       {/* Notifications List Body */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(n => (
-            <div key={n} className="bg-brand-surface rounded-2xl p-4 border border-brand-border shadow-soft-sm animate-pulse flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-lavender rounded-full shrink-0" />
-              <div className="space-y-2 flex-1">
-                <div className="w-48 h-4 bg-brand-lavender rounded" />
-                <div className="w-20 h-3 bg-brand-lavender rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : notifications.length === 0 ? (
+      {displayNotifications.length === 0 ? (
         <div className="bg-brand-surface rounded-3xl p-12 border border-brand-border shadow-soft-sm text-center flex flex-col items-center justify-center space-y-3">
           <div className="w-14 h-14 rounded-full bg-brand-lavender text-brand-purple flex items-center justify-center mb-1">
             <Bell className="w-7 h-7" />
@@ -176,7 +122,7 @@ export default function Notifications({ onSelectProfileUsername, onSelectPostId,
         </div>
       ) : (
         <div className="space-y-3">
-          {notifications.map((notif) => (
+          {displayNotifications.map((notif) => (
             <NotificationItem
               key={notif.id}
               notification={notif}
@@ -185,25 +131,6 @@ export default function Notifications({ onSelectProfileUsername, onSelectPostId,
               onShowToast={onShowToast}
             />
           ))}
-
-          {hasMore && (
-            <div className="text-center pt-3 pb-6">
-              <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="px-6 py-2.5 rounded-full bg-brand-surface border border-brand-border text-brand-purple font-semibold text-xs hover:bg-brand-lavender transition-all shadow-soft-xs inline-flex items-center gap-2"
-              >
-                {loadingMore ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Loading notifications...</span>
-                  </>
-                ) : (
-                  <span>Load More Notifications</span>
-                )}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

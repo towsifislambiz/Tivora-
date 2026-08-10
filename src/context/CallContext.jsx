@@ -20,7 +20,7 @@ import { db } from '../firebase/FirebaseConfig';
 const CallContext = createContext(null);
 
 export function CallProvider({ children }) {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
   const webRTC = useWebRTC();
 
   const [activeCall, setActiveCall] = useState(null);
@@ -138,6 +138,9 @@ export function CallProvider({ children }) {
 
   // ─── 2. Start Outgoing Call ───────────────────────────────────────────────
   const startCall = useCallback(async (receiver, type = 'voice') => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      throw new Error("Demo Bot Account is read-only. Sign up for a free account to make calls! 🔒");
+    }
     const receiverUid = receiver?.uid || receiver?.id || receiver?.partner?.uid || receiver?.partner?.id;
     if (!currentUser?.uid || !receiverUid) throw new Error("Could not find valid recipient UID.");
     if (callState !== 'idle') return;
