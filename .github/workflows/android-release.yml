@@ -56,12 +56,12 @@ jobs:
           echo "✅ Web build OK"
           du -sh dist/
 
-      # ─── Step 6: Java 17 Setup ──────────────────────────────────────────────
-      - name: Setup Java JDK 17
+      # ─── Step 6: Java 21 Setup ──────────────────────────────────────────────
+      - name: Setup Java JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       # ─── Step 7: Android SDK Setup ──────────────────────────────────────────
       - name: Setup Android SDK
