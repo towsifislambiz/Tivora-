@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, 
   Loader2, 
@@ -131,28 +131,23 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
   }, [currentUser?.uid, partnerUid]);
 
   // 4. Messenger Scroll Helper & Handle Scroll Events
-  const scrollToBottom = useCallback((smooth = true) => {
-    requestAnimationFrame(() => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({
-          behavior: smooth ? 'smooth' : 'auto',
-          block: 'end'
-        });
-      }
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-      }
+  const scrollToBottom = (smooth = true) => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight + 300,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
       setHasUnreadBelow(false);
       setIsScrolledUp(false);
       isNearBottomRef.current = true;
-    });
-  }, []);
+    }
+  };
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
     const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-    const isNear = distanceFromBottom <= 100;
+    const isNear = distanceFromBottom <= 140;
 
     isNearBottomRef.current = isNear;
     setIsScrolledUp(!isNear);
@@ -188,7 +183,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
         setHasUnreadBelow(true);
       }
     }
-  }, [messages, currentUser?.uid, scrollToBottom]);
+  }, [messages, currentUser?.uid]);
 
   // Auto-scroll when partner starts typing if near bottom
   useEffect(() => {
@@ -255,7 +250,7 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
     if (inputRef.current) inputRef.current.focus();
   };
 
-  // Handle Send Message (Instant Zero-Latency Dispatch)
+  // Handle Send Message
   const handleSendSubmit = async (e) => {
     e?.preventDefault();
     const trimmed = text.trim();
@@ -266,15 +261,8 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
       return;
     }
 
-    const targetText = trimmed;
-    setText('');
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-    }
+    setSending(true);
     setShowEmojiPicker(false);
-    isNearBottomRef.current = true;
-    scrollToBottom(true);
-
     try {
       const actorData = {
         displayName: userDoc?.displayName || currentUser.displayName || 'Tivora User',
@@ -289,11 +277,18 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
       // Clear typing status on send
       setTypingStatus(targetId, currentUser.uid, false);
 
-      await sendMessage(targetId, currentUser.uid, partnerUid, targetText, actorData);
+      await sendMessage(targetId, currentUser.uid, partnerUid, trimmed, actorData);
+      setText('');
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+      }
       scrollToBottom(true);
+      inputRef.current?.focus();
     } catch (err) {
       console.warn("sendMessage error:", err);
       if (onShowToast) onShowToast(err.message || "Failed to send message.");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -596,8 +591,11 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
           </div>
         )}
 
-        {/* 💬 Messenger Bottom Padding Spacer */}
-        <div className="h-4 shrink-0" aria-hidden="true" />
+        {/* 💬 Dynamic Messenger Scroll Spacer (Calculates Composer Height + 24px Breathing Room) */}
+        <div 
+          style={{ height: `${Math.max(composerHeight, 60) + 16}px`, flexShrink: 0 }} 
+          aria-hidden="true" 
+        />
         <div ref={messagesEndRef} />
       </div>
 

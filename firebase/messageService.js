@@ -13,8 +13,7 @@ import {
   startAfter,
   onSnapshot,
   runTransaction,
-  serverTimestamp,
-  Timestamp
+  serverTimestamp
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "./FirebaseConfig";
@@ -42,18 +41,19 @@ export function getCanonicalConversationId(uid1, uid2) {
  * @param {string} uid1 
  * @param {string} uid2 
  */
-export function areFriends(uid1, uid2) {
-  if (!uid1 || !uid2 || uid1 === uid2) return Promise.resolve(false);
+export async function areFriends(uid1, uid2) {
+  if (!uid1 || !uid2 || uid1 === uid2) return false;
   try {
     const friendshipId = getCanonicalFriendshipId(uid1, uid2);
-    return getDoc(doc(db, FRIENDSHIPS_COLLECTION, friendshipId)).then((snap) => {
-      if (snap.exists()) {
-        return snap.data().status === "accepted";
-      }
-      return true;
-    }).catch(() => true);
+    const snap = await getDoc(doc(db, FRIENDSHIPS_COLLECTION, friendshipId));
+    if (snap.exists()) {
+      return snap.data().status === "accepted";
+    }
+    // If no friendship record document exists yet, permit messaging for testing/demo
+    return true;
   } catch (err) {
-    return Promise.resolve(true);
+    console.warn("areFriends check warning:", err);
+    return true;
   }
 }
 
@@ -94,7 +94,6 @@ export async function getOrCreateConversation(currentUid, targetUid) {
   }
 
   const [participantA, participantB] = [currentUid, targetUid].sort();
-  const nowTimestamp = Timestamp.now();
   const newConvData = {
     id: conversationId,
     participantIds: [participantA, participantB],
@@ -102,13 +101,13 @@ export async function getOrCreateConversation(currentUid, targetUid) {
     participantB,
     lastMessage: "",
     lastMessageSenderId: "",
-    lastMessageAt: nowTimestamp,
+    lastMessageAt: serverTimestamp(),
     lastMessageReadBy: {
       [currentUid]: new Date().toISOString(),
       [targetUid]: new Date().toISOString()
     },
-    createdAt: nowTimestamp,
-    updatedAt: nowTimestamp
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   };
 
   try {
@@ -120,7 +119,7 @@ export async function getOrCreateConversation(currentUid, targetUid) {
 }
 
 /**
- * Send a message in a conversation atomically with instant local cache dispatch
+ * Send a message in a conversation atomically
  * @param {string} conversationId 
  * @param {string} senderId 
  * @param {string} receiverId 
@@ -143,8 +142,6 @@ export async function sendMessage(conversationId, senderId, receiverId, text, ac
   const messageId = messageRef.id;
 
   const [participantA, participantB] = [senderId, receiverId].sort();
-  const nowTimestamp = Timestamp.now();
-  const nowIso = new Date().toISOString();
 
   const messageData = {
     id: messageId,
@@ -155,52 +152,71 @@ export async function sendMessage(conversationId, senderId, receiverId, text, ac
     type: "text",
     isEdited: false,
     isDeleted: false,
-    createdAt: nowTimestamp,
-    updatedAt: nowTimestamp
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   };
 
-  // Instant local IndexedDB write + async server sync (0ms latency!)
-  const writeMessagePromise = setDoc(messageRef, messageData);
-  const updateConvPromise = setDoc(convRef, {
-    id: canonicalConvId,
-    participantIds: [participantA, participantB],
-    participantA,
-    participantB,
-    lastMessage: trimmedText,
-    lastMessageSenderId: senderId,
-    lastMessageAt: nowTimestamp,
-    updatedAt: nowTimestamp,
-    lastMessageReadBy: {
-      [senderId]: nowIso
+  await runTransaction(db, async (transaction) => {
+    const convSnap = await transaction.get(convRef);
+
+    if (!convSnap.exists()) {
+      // Auto-create conversation document if it doesn't exist yet in Firestore
+      transaction.set(convRef, {
+        id: canonicalConvId,
+        participantIds: [participantA, participantB],
+        participantA,
+        participantB,
+        lastMessage: trimmedText,
+        lastMessageSenderId: senderId,
+        lastMessageAt: serverTimestamp(),
+        lastMessageReadBy: {
+          [senderId]: new Date().toISOString(),
+          [receiverId]: new Date().toISOString()
+        },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      transaction.update(convRef, {
+        lastMessage: trimmedText,
+        lastMessageSenderId: senderId,
+        lastMessageAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        [`lastMessageReadBy.${senderId}`]: new Date().toISOString()
+      });
     }
-  }, { merge: true });
 
-  // Non-blocking notification dispatch
-  createNotification({
-    id: `message_${messageId}`,
-    recipientId: receiverId,
-    actorId: senderId,
-    actorDisplayName: actorData.displayName || "Tivora User",
-    actorUsername: actorData.username || "user",
-    actorPhotoURL: actorData.photoURL || "",
-    type: "message",
-    message: "sent you a message.",
-    relatedId: canonicalConvId,
-    postId: null
-  }).catch(() => {});
+    transaction.set(messageRef, messageData);
+  });
 
-  await Promise.all([writeMessagePromise, updateConvPromise]);
+  // Trigger Phase 7 message notification for receiver
+  try {
+    createNotification({
+      id: `message_${messageId}`,
+      recipientId: receiverId,
+      actorId: senderId,
+      actorDisplayName: actorData.displayName || "Tivora User",
+      actorUsername: actorData.username || "user",
+      actorPhotoURL: actorData.photoURL || "",
+      type: "message",
+      message: "sent you a message.",
+      relatedId: canonicalConvId,
+      postId: null
+    });
+  } catch (notifErr) {
+    console.warn("Message notification error:", notifErr);
+  }
 
   return {
     ...messageData,
     conversationId: canonicalConvId,
-    createdAt: nowIso,
-    updatedAt: nowIso
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 }
 
 /**
- * Real-time subscription to messages for an open chat window with robust sorting
+ * Real-time subscription to messages for an open chat window
  * @param {string} conversationId 
  * @param {function} callback 
  */
@@ -208,53 +224,18 @@ export function subscribeToMessages(conversationId, callback) {
   if (!conversationId) return () => {};
 
   const messagesRef = collection(db, CONVERSATIONS_COLLECTION, conversationId, "messages");
-  const q = query(messagesRef, orderBy("createdAt", "asc"));
+  const q = query(messagesRef, orderBy("createdAt", "asc"), limit(100));
 
-  let isFallbackActive = false;
-
-  const unsub = onSnapshot(q, (snapshot) => {
-    if (isFallbackActive) return;
+  return onSnapshot(q, (snapshot) => {
     const messages = [];
     snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      let createdAtIso = data.createdAt;
-      if (data.createdAt?.toDate) {
-        createdAtIso = data.createdAt.toDate().toISOString();
-      } else if (typeof data.createdAt === 'string') {
-        createdAtIso = data.createdAt;
-      } else {
-        createdAtIso = new Date().toISOString();
-      }
-      messages.push({ ...data, createdAt: createdAtIso, id: docSnap.id });
+      messages.push({ ...docSnap.data(), id: docSnap.id });
     });
-
-    // In-memory sort by timestamp to guarantee correct order regardless of mixed data history
-    messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     callback(messages);
   }, (err) => {
-    console.warn("Messages subscription notice, using fallback query:", err);
-    isFallbackActive = true;
-    const fallbackQ = query(messagesRef);
-    onSnapshot(fallbackQ, (fallbackSnap) => {
-      const messages = [];
-      fallbackSnap.forEach((docSnap) => {
-        const data = docSnap.data();
-        let createdAtIso = data.createdAt;
-        if (data.createdAt?.toDate) {
-          createdAtIso = data.createdAt.toDate().toISOString();
-        } else if (typeof data.createdAt === 'string') {
-          createdAtIso = data.createdAt;
-        } else {
-          createdAtIso = new Date().toISOString();
-        }
-        messages.push({ ...data, createdAt: createdAtIso, id: docSnap.id });
-      });
-      messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      callback(messages);
-    });
+    console.warn("Messages subscription notice:", err);
+    callback([]);
   });
-
-  return unsub;
 }
 
 /**
@@ -502,7 +483,6 @@ export async function sendVoiceMessage(conversationId, senderId, receiverId, aud
   const messageId = messageRef.id;
 
   const [participantA, participantB] = [senderId, receiverId].sort();
-  const nowIso = new Date().toISOString();
 
   const messageData = {
     id: messageId,
@@ -515,26 +495,41 @@ export async function sendVoiceMessage(conversationId, senderId, receiverId, aud
     duration: Math.round(duration || 0),
     isEdited: false,
     isDeleted: false,
-    createdAt: nowIso,
-    updatedAt: nowIso
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   };
 
-  const writeMessagePromise = setDoc(messageRef, messageData);
-  const updateConvPromise = setDoc(convRef, {
-    id: canonicalConvId,
-    participantIds: [participantA, participantB],
-    participantA,
-    participantB,
-    lastMessage: "🎤 Voice Message",
-    lastMessageSenderId: senderId,
-    lastMessageAt: nowIso,
-    updatedAt: nowIso,
-    lastMessageReadBy: {
-      [senderId]: nowIso
-    }
-  }, { merge: true });
+  await runTransaction(db, async (transaction) => {
+    const convSnap = await transaction.get(convRef);
 
-  await Promise.all([writeMessagePromise, updateConvPromise]);
+    if (!convSnap.exists()) {
+      transaction.set(convRef, {
+        id: canonicalConvId,
+        participantIds: [participantA, participantB],
+        participantA,
+        participantB,
+        lastMessage: "🎤 Voice Message",
+        lastMessageSenderId: senderId,
+        lastMessageAt: serverTimestamp(),
+        lastMessageReadBy: {
+          [senderId]: new Date().toISOString(),
+          [receiverId]: new Date().toISOString()
+        },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      transaction.update(convRef, {
+        lastMessage: "🎤 Voice Message",
+        lastMessageSenderId: senderId,
+        lastMessageAt: serverTimestamp(),
+        [`lastMessageReadBy.${senderId}`]: new Date().toISOString(),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    transaction.set(messageRef, messageData);
+  });
 
   // Create real-time notification
   try {
