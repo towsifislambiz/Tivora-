@@ -36,11 +36,12 @@ android {
             def ksPath = System.getenv("KEYSTORE_FILE")
             if (ksPath != null && !ksPath.trim().isEmpty() && file(ksPath).exists()) {
                 signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
             }
         }
         debug {
-            applicationIdSuffix ".debug"
-            versionNameSuffix "-debug"
+            // Consistent package name across all builds
         }
     }
 
