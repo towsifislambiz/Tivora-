@@ -71,6 +71,14 @@ jobs:
       - name: Sync Capacitor Android
         run: npx cap sync android
 
+      # ─── Step 8b: Ensure google-services.json for build ─────────────────────
+      - name: Ensure google-services.json
+        run: |
+          if [ ! -f "android/app/google-services.json" ]; then
+            echo '{"project_info":{"project_number":"134721635663","project_id":"tivora-2abd2","storage_bucket":"tivora-2abd2.firebasestorage.app"},"client":[{"client_info":{"mobilesdk_app_id":"1:134721635663:android:78bdcc75c0281e0a71713a","android_client_info":{"package_name":"com.tivora.app"}},"api_key":[{"current_key":"AIzaSyA3rVPzDS-Caf_DdCcgReYdR3zRi11rMT8"}]}]}' > android/app/google-services.json
+            echo "✅ Created fallback google-services.json for Gradle build"
+          fi
+
       # ─── Step 9: Decode Signing Keystore (if secret exists) ─────────────────────
       - name: Decode keystore from secret
         env:
