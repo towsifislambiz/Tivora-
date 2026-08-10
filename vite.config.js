@@ -1,9 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'fs';
+
+// Read version from package.json at build time
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+  ],
+  define: {
+    // Inject app version into the bundle so the update checker can read it
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   server: {
     port: 3000,
     open: false
@@ -21,9 +31,7 @@ export default defineConfig({
         }
       }
     },
-    // Suppress non-critical chunk size warnings
     chunkSizeWarningLimit: 600,
-    // Enable source maps for production debugging without exposing source code
     sourcemap: false,
   }
 });

@@ -24,6 +24,8 @@ import Toast from './components/common/Toast';
 import CreatePostModal from './components/common/CreatePostModal';
 import InstallAppModal from './components/common/InstallAppModal';
 import MobileInstallBanner from './components/common/MobileInstallBanner';
+import UpdateAvailableModal from './components/common/UpdateAvailableModal';
+import { useAppUpdateChecker } from './hooks/useAppUpdateChecker';
 
 // Call System Components (Phase 12)
 import IncomingCallModal from './components/calls/IncomingCallModal';
@@ -64,6 +66,17 @@ function MainAppContent() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+
+  // Update checker — runs once at startup, 24h cache, offline-safe
+  const { updateAvailable, latestVersion, latestDownloadUrl, currentVersion } = useAppUpdateChecker();
+
+  // Show update modal when a new version is detected
+  useEffect(() => {
+    if (updateAvailable) {
+      setShowUpdateModal(true);
+    }
+  }, [updateAvailable]);
 
   const [suggestedFriends, setSuggestedFriends] = useState(initialSuggestedFriends);
 
@@ -410,6 +423,15 @@ function MainAppContent() {
               isOpen={isInstallModalOpen}
               onClose={() => setIsInstallModalOpen(false)}
               onShowToast={showToast}
+            />
+
+            {/* Update Available Modal — shown when a new Tivora version is released */}
+            <UpdateAvailableModal
+              isOpen={showUpdateModal}
+              onClose={() => setShowUpdateModal(false)}
+              latestVersion={latestVersion}
+              currentVersion={currentVersion}
+              downloadUrl={latestDownloadUrl}
             />
 
             {/* 6. Toast Notification */}

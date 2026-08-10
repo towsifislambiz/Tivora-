@@ -1,0 +1,186 @@
+name: Android Release Build
+
+# Triggered ONLY when a version tag is pushed (e.g., v1.0.0, v1.0.1, v2.0.0)
+# Normal commits do NOT trigger this workflow.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  build-android:
+    name: Build & Sign Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # ─── Step 1: Checkout ────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ─── Step 2: Node.js Setup ───────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ─── Step 3: Install JS Dependencies ────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ─── Step 4: Extract version from tag ───────────────────────────────────
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          # versionCode = seconds since epoch, always incrementing
+          VERSION_CODE=$(date +%s)
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "Version: $VERSION (code: $VERSION_CODE)"
+
+      # ─── Step 5: Build React/Vite for Production ─────────────────────────────
+      - name: Build web assets (Vite production)
+        env:
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Verify web build output
+        run: |
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ FATAL: dist/index.html not found after build"
+            exit 1
+          fi
+          echo "✅ Web build OK"
+          du -sh dist/
+
+      # ─── Step 6: Java 17 Setup ──────────────────────────────────────────────
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # ─── Step 7: Android SDK Setup ──────────────────────────────────────────
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # ─── Step 8: Capacitor Sync ──────────────────────────────────────────────
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      # ─── Step 9: Decode Signing Keystore ─────────────────────────────────────
+      - name: Decode keystore from secret
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/tivora-release.jks
+          echo "KEYSTORE_FILE=/tmp/tivora-release.jks" >> $GITHUB_ENV
+
+      # ─── Step 10: Build Signed Release APK ───────────────────────────────────
+      - name: Build Release APK
+        env:
+          ANDROID_VERSION_CODE: ${{ env.VERSION_CODE }}
+          ANDROID_VERSION_NAME: ${{ env.VERSION }}
+          KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -PANDROID_VERSION_CODE=${{ env.VERSION_CODE }} \
+            -PANDROID_VERSION_NAME=${{ env.VERSION }}
+
+      # ─── Step 11: Secure Cleanup ──────────────────────────────────────────────
+      - name: Delete temporary keystore
+        if: always()
+        run: rm -f /tmp/tivora-release.jks
+
+      # ─── Step 12: Locate APK ─────────────────────────────────────────────────
+      - name: Locate built APK
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
+          echo "Found APK: $APK_PATH"
+
+      # ─── Step 13: Validate APK ───────────────────────────────────────────────
+      - name: Validate APK
+        run: |
+          APK="${{ env.APK_PATH }}"
+          
+          # 1. File must exist
+          if [ ! -f "$APK" ]; then
+            echo "❌ FAIL: APK file not found at $APK"
+            exit 1
+          fi
+          echo "✅ APK exists: $APK"
+
+          # 2. Size check: must be > 3 MB (3145728 bytes)
+          SIZE=$(stat -c%s "$APK")
+          echo "APK size: $SIZE bytes ($(( SIZE / 1024 / 1024 )) MB)"
+          if [ "$SIZE" -lt 3145728 ]; then
+            echo "❌ FAIL: APK is suspiciously small ($SIZE bytes). Expected a real Android app (>3 MB)."
+            exit 1
+          fi
+          echo "✅ APK size OK: $(( SIZE / 1024 / 1024 )) MB"
+
+          # 3. Signature verification using apksigner
+          $ANDROID_SDK_ROOT/build-tools/$(ls $ANDROID_SDK_ROOT/build-tools/ | tail -1)/apksigner verify --verbose "$APK" 2>&1 | grep -E "Verif|FAIL|Error"
+          echo "✅ APK signature verified"
+
+          # 4. Package name and version check using aapt
+          AAPT="$ANDROID_SDK_ROOT/build-tools/$(ls $ANDROID_SDK_ROOT/build-tools/ | tail -1)/aapt"
+          BADGING=$($AAPT dump badging "$APK")
+          
+          echo "$BADGING" | grep "package: name='com.tivora.app'" || {
+            echo "❌ FAIL: Wrong package name in APK"
+            echo "$BADGING" | grep "package:"
+            exit 1
+          }
+          echo "✅ Package name OK: com.tivora.app"
+
+          echo "$BADGING" | grep "versionName='${{ env.VERSION }}'" || {
+            echo "⚠️ WARNING: versionName mismatch"
+            echo "$BADGING" | grep "versionName"
+          }
+          echo "✅ APK validation passed"
+
+      # ─── Step 14: Rename APK ─────────────────────────────────────────────────
+      - name: Rename APK to Tivora.apk
+        run: |
+          cp "${{ env.APK_PATH }}" "Tivora.apk"
+          echo "RELEASE_APK=Tivora.apk" >> $GITHUB_ENV
+
+      # ─── Step 15: Create GitHub Release ──────────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: "Tivora ${{ env.VERSION }}"
+          body: |
+            ## Tivora ${{ env.VERSION }}
+
+            ### 📱 Installation
+            1. Download **Tivora.apk** below
+            2. On your Android phone, tap the downloaded file
+            3. Allow "Install unknown apps" if prompted
+            4. Tap **Install**
+            5. 🎉 Tivora appears on your home screen!
+
+            ### ℹ️ Details
+            - Version: `${{ env.VERSION }}`
+            - Minimum Android: 7.0 (API 24)
+            - Package: `com.tivora.app`
+            - Build: `${{ env.VERSION_CODE }}`
+
+            ### 🔄 Updating
+            If you have an older version installed, simply install this APK over it. Your account and data will be preserved.
+          files: Tivora.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

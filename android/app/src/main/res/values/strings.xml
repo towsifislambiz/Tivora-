@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Tivora</string>
+    <string name="title_activity_main">Tivora</string>
+    <string name="package_name">com.tivora.app</string>
+    <string name="custom_url_scheme">com.tivora.app</string>
+</resources>

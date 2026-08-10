@@ -26,3 +26,18 @@ dist-ssr
 # Environment variables
 .env
 .env.production
+
+# Android signing credentials — NEVER COMMIT THESE
+*.jks
+*.keystore
+keystore.properties
+
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/app/release/
+
+# Generated icons script output (tracked by git, not regenerated on CI)
+# scripts/ is committed so CI can run it
