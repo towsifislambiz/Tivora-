@@ -23,6 +23,7 @@ import AmbientBackground from './components/ui/AmbientBackground';
 import Toast from './components/common/Toast';
 import CreatePostModal from './components/common/CreatePostModal';
 import InstallAppModal from './components/common/InstallAppModal';
+import MobileInstallBanner from './components/common/MobileInstallBanner';
 
 // Call System Components (Phase 12)
 import IncomingCallModal from './components/calls/IncomingCallModal';
@@ -323,6 +324,11 @@ function MainAppContent() {
               setActiveScreen={(screen) => handleNavigateScreen(screen)}
               isMobileSim={isMobileSim}
               setIsMobileSim={setIsMobileSim}
+            />
+
+            {/* Mobile App Installation Banner */}
+            <MobileInstallBanner
+              onOpenInstallModal={() => setIsInstallModalOpen(true)}
             />
 
             {/* 2. Main Topbar Header */}

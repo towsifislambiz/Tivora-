@@ -358,6 +358,16 @@ export default function Topbar({ setActiveScreen, onOpenCreateModal, onSelectPro
           )}
         </div>
 
+        {/* Mobile App Install Button */}
+        <button
+          onClick={() => onOpenInstallModal && onOpenInstallModal()}
+          className="w-10 h-10 rounded-full bg-primary-gradient text-white flex items-center justify-center relative shadow-gradient-glow hover:scale-105 active:scale-95 transition-transform shrink-0"
+          title="Get Tivora Mobile App"
+          aria-label="Get Tivora Mobile App"
+        >
+          <Smartphone className="w-4 h-4" />
+        </button>
+
         {/* Real-time Notifications Dropdown & Badge */}
         <div className="relative" ref={notifRef}>
           <button
