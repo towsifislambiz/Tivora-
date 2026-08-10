@@ -13,6 +13,7 @@ import {
 import { getUserDocument } from "../firebase/firestore";
 import { generateUniqueUsername, reserveUsernameAndCreateProfile, updateUserProfile } from "../firebase/profileService";
 import { initPresenceTracker } from "../firebase/presenceService";
+import { registerFCMToken, removeFCMToken } from "../firebase/fcmService";
 
 export const AuthContext = createContext(null);
 
@@ -40,6 +41,9 @@ export function AuthProvider({ children }) {
       if (user) {
         setCurrentUser(user);
         
+        // Register FCM Push Token securely for this authenticated user
+        registerFCMToken(user.uid);
+
         // Initialize Real-Time Messenger Presence Heartbeat
         if (cleanupPresence) cleanupPresence();
         cleanupPresence = initPresenceTracker(user.uid);
@@ -140,6 +144,7 @@ export function AuthProvider({ children }) {
 
   const handleLogout = async () => {
     if (currentUser?.uid) {
+      removeFCMToken(currentUser.uid);
       localStorage.removeItem(`${STORAGE_KEY_PREFIX}${currentUser.uid}`);
     }
     return await signOutUser();

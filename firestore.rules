@@ -32,6 +32,11 @@ service cloud.firestore {
       match /searchHistory/{searchId} {
         allow read, write: if isOwner(userId);
       }
+
+      // FCM Device Tokens Subcollection (users/{userId}/fcmTokens/{tokenId})
+      match /fcmTokens/{tokenId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // 2. O(1) Unique Username Mappings Collection (usernames/{username})

@@ -28,6 +28,33 @@
 
         </activity>
 
+        <!-- Call Answer Activity (Full screen / lock screen incoming call answer target) -->
+        <activity
+            android:name=".CallAnswerActivity"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
+        <!-- BroadcastReceiver for Notification Decline Action -->
+        <receiver
+            android:name=".CallDeclineReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.tivora.app.ACTION_DECLINE_CALL" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Firebase Cloud Messaging Native Service -->
+        <service
+            android:name=".TivoraMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -52,10 +79,12 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
-    <!-- Push notifications -->
+    <!-- Push notifications & Incoming Calls -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Storage (image upload, file access) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
@@ -63,9 +92,6 @@
     <!-- Fallback for Android < 13 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-
-    <!-- Keep screen on during calls -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Hardware features (non-required to allow install on devices without camera) -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
