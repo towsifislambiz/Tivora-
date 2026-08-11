@@ -55,6 +55,8 @@ export function useWebRTC() {
   const remoteStreamRef = useRef(null);
   const iceCandidatesQueueRef = useRef([]);
   const hasRemoteDescriptionRef = useRef(false);
+  const processedCandidatesRef = useRef(new Set());
+  const processedRemoteSdpRef = useRef(null);
 
   /**
    * Drain queued remote ICE candidates after setRemoteDescription()
@@ -331,9 +333,11 @@ export function useWebRTC() {
    * Add Remote ICE Candidate with safe queueing
    */
   const addRemoteIceCandidate = useCallback(async (candidateData) => {
-    if (!pcRef.current || !candidateData) {
-      return;
-    }
+    if (!pcRef.current || !candidateData) return;
+
+    const candStr = candidateData.candidate || JSON.stringify(candidateData);
+    if (processedCandidatesRef.current.has(candStr)) return;
+    processedCandidatesRef.current.add(candStr);
 
     if (!hasRemoteDescriptionRef.current) {
       iceCandidatesQueueRef.current.push(candidateData);
@@ -432,6 +436,8 @@ export function useWebRTC() {
     setPermissionError(null);
     iceCandidatesQueueRef.current = [];
     hasRemoteDescriptionRef.current = false;
+    processedCandidatesRef.current.clear();
+    processedRemoteSdpRef.current = null;
   }, []);
 
   useEffect(() => {

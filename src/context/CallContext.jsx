@@ -36,9 +36,54 @@ export function CallProvider({ children }) {
   const unsubCallDocRef = useRef(null);
   const unsubIceCandidatesRef = useRef(null);
 
+  const activeCallIdRef = useRef(null);
+  const connectingTimeoutRef = useRef(null);
+
   activeCallRef.current = activeCall;
+  activeCallIdRef.current = activeCall?.callId || null;
   incomingCallRef.current = incomingCall;
   callStateRef.current = callState;
+
+  // Background / Foreground Media Preservation
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && callState === 'connected') {
+        console.log('[WebRTC] App returned to foreground during active call -> preserving tracks');
+        if (webRTC.localStream) {
+          webRTC.localStream.getTracks().forEach((track) => { track.enabled = true; });
+        }
+        if (webRTC.remoteStream) {
+          webRTC.remoteStream.getTracks().forEach((track) => { track.enabled = true; });
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [callState, webRTC.localStream, webRTC.remoteStream]);
+
+  // 15-second Connecting Safety Timeout
+  useEffect(() => {
+    if (callState === 'connecting') {
+      connectingTimeoutRef.current = setTimeout(async () => {
+        if (callStateRef.current === 'connecting' && webRTC.connectionState !== 'connected') {
+          console.warn('[WebRTC] Connecting timeout reached (15s) -> failing call cleanly');
+          setCallState('failed');
+          if (activeCallRef.current?.callId) {
+            await updateCallStatus(activeCallRef.current.callId, 'failed').catch(() => {});
+          }
+          setTimeout(() => resetCallState(), 2000);
+        }
+      }, 15000);
+    } else {
+      if (connectingTimeoutRef.current) {
+        clearTimeout(connectingTimeoutRef.current);
+        connectingTimeoutRef.current = null;
+      }
+    }
+    return () => {
+      if (connectingTimeoutRef.current) clearTimeout(connectingTimeoutRef.current);
+    };
+  }, [callState, webRTC.connectionState]);
 
   // ─── 1. Incoming Call Subscription (WhatsApp Multi-Device) ────────────────
   useEffect(() => {
@@ -123,11 +168,21 @@ export function CallProvider({ children }) {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [callState]);
 
+  // WebRTC Connection State Sync — transitions UI to 'connected' as soon as P2P completes
+  useEffect(() => {
+    if (webRTC.connectionState === 'connected' && (callState === 'calling' || callState === 'connecting')) {
+      console.log('[WebRTC] P2P connection established -> updating UI state to connected');
+      setCallState('connected');
+      if (callingTimeoutRef.current) clearTimeout(callingTimeoutRef.current);
+    }
+  }, [webRTC.connectionState, callState]);
+
   // ─── Reset / Cleanup ──────────────────────────────────────────────────────
   const resetCallState = useCallback(() => {
     if (unsubCallDocRef.current) { unsubCallDocRef.current(); unsubCallDocRef.current = null; }
     if (unsubIceCandidatesRef.current) { unsubIceCandidatesRef.current(); unsubIceCandidatesRef.current = null; }
     if (callingTimeoutRef.current) { clearTimeout(callingTimeoutRef.current); callingTimeoutRef.current = null; }
+    if (connectingTimeoutRef.current) { clearTimeout(connectingTimeoutRef.current); connectingTimeoutRef.current = null; }
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     webRTC.cleanupMedia();
     setActiveCall(null);
@@ -186,12 +241,13 @@ export function CallProvider({ children }) {
 
       // 5. Listen for receiver's ICE candidates
       unsubIceCandidatesRef.current = subscribeToIceCandidates(callId, true, (candidate) => {
+        if (callId !== activeCallIdRef.current) return;
         webRTC.addRemoteIceCandidate(candidate);
       });
 
       // 6. Listen for answer / status changes
       unsubCallDocRef.current = subscribeToCallDoc(callId, async (updatedCall) => {
-        if (!updatedCall) return;
+        if (!updatedCall || callId !== activeCallIdRef.current) return;
 
         if (updatedCall.answer) {
           if (pc.signalingState !== 'stable') {
@@ -284,6 +340,7 @@ export function CallProvider({ children }) {
 
       // 4. Subscribe to caller's ICE candidates
       unsubIceCandidatesRef.current = subscribeToIceCandidates(callId, false, (candidate) => {
+        if (callId !== activeCallIdRef.current) return;
         webRTC.addRemoteIceCandidate(candidate);
       });
 
@@ -294,7 +351,7 @@ export function CallProvider({ children }) {
 
       // 6. Subscribe to call doc for 'ended' status
       unsubCallDocRef.current = subscribeToCallDoc(callId, (updatedCall) => {
-        if (!updatedCall) return;
+        if (!updatedCall || callId !== activeCallIdRef.current) return;
         if (updatedCall.status === 'ended') {
           setCallState('ended');
           setTimeout(() => resetCallState(), 1500);
