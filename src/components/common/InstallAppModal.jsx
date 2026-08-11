@@ -30,6 +30,8 @@ export default function InstallAppModal({ isOpen, onClose, onShowToast }) {
   if (!isOpen) return null;
 
   const handleInstallClick = async () => {
+    localStorage.setItem('tivora_install_banner_dismissed', 'true');
+    localStorage.setItem('tivora_app_installed', 'true');
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -44,6 +46,8 @@ export default function InstallAppModal({ isOpen, onClose, onShowToast }) {
   };
 
   const handleApkDownload = () => {
+    localStorage.setItem('tivora_install_banner_dismissed', 'true');
+    localStorage.setItem('tivora_app_installed', 'true');
     onShowToast?.('Downloading Tivora.apk… Open it from Downloads to install 📥');
   };
 
