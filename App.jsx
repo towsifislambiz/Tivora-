@@ -23,7 +23,7 @@ import AmbientBackground from './components/ui/AmbientBackground';
 import Toast from './components/common/Toast';
 import CreatePostModal from './components/common/CreatePostModal';
 import InstallAppModal from './components/common/InstallAppModal';
-import MobileInstallBanner from './components/common/MobileInstallBanner';
+import MobileInstallBanner, { isAppInstalledOrStandalone } from './components/common/MobileInstallBanner';
 import UpdateAvailableModal from './components/common/UpdateAvailableModal';
 import { useAppUpdateChecker } from './hooks/useAppUpdateChecker';
 
@@ -68,12 +68,14 @@ function MainAppContent() {
   const [toastMessage, setToastMessage] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
-  // Update checker — runs once at startup, 24h cache, offline-safe
-  const { updateAvailable, latestVersion, latestDownloadUrl, currentVersion } = useAppUpdateChecker();
+  // Update checker — runs ONLY inside installed Native Android App (disabled on Vercel website)
+  const { updateAvailable, latestVersion, latestDownloadUrl, currentVersion } = useAppUpdateChecker({
+    enabled: isAppInstalledOrStandalone()
+  });
 
-  // Show update modal when a new version is detected
+  // Show update modal when a new version is detected inside Android App
   useEffect(() => {
-    if (updateAvailable) {
+    if (updateAvailable && isAppInstalledOrStandalone()) {
       setShowUpdateModal(true);
     }
   }, [updateAvailable]);
