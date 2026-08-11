@@ -21,6 +21,7 @@ import { db, storage } from "./FirebaseConfig";
 import { getCanonicalFriendshipId, getFriendshipStatus } from "./friendService";
 import { createNotification } from "./notificationService";
 import { getUserDocument } from "./firestore";
+import { sendPushNotification } from "./fcmService";
 
 const CONVERSATIONS_COLLECTION = "conversations";
 const FRIENDSHIPS_COLLECTION = "friendships";
@@ -176,6 +177,17 @@ export async function sendMessage(conversationId, senderId, receiverId, text, ac
   }, { merge: true });
 
   await Promise.all([writeMessagePromise, updateConvPromise]);
+
+  // Send push notification asynchronously to receiver's devices
+  const senderName = actorData.displayName || actorData.username || "Tivora User";
+  sendPushNotification(receiverId, senderName, trimmedText, {
+    type: "message",
+    conversationId: canonicalConvId,
+    senderId,
+    senderName,
+    sound: "tivora_message",
+    channelId: "tivora_messages"
+  }).catch((err) => console.warn("Push notification async notice:", err));
 
   return {
     ...messageData,

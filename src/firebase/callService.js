@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./FirebaseConfig";
 import { sendMessage, getCanonicalConversationId } from "./messageService";
+import { sendPushNotification } from "./fcmService";
 
 const CALLS_COLLECTION = "calls";
 
@@ -55,6 +56,20 @@ export async function createCallDoc(caller, receiver, type) {
   };
 
   await setDoc(callRef, callData);
+
+  // Send high-priority incoming call push notification asynchronously
+  const callerName = caller.displayName || caller.username || 'Tivora Friend';
+  sendPushNotification(receiver.uid, callerName, type === 'video' ? 'Incoming Video Call 🎥' : 'Incoming Voice Call 📞', {
+    type: 'incoming_call',
+    callId,
+    callType: type,
+    callerId: caller.uid,
+    callerName,
+    status: 'calling',
+    sound: 'tivora_ringtone',
+    channelId: 'tivora_calls'
+  }).catch((err) => console.warn("Call push notification async notice:", err));
+
   return { ...callData, callId };
 }
 
