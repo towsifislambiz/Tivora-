@@ -68,14 +68,14 @@ function MainAppContent() {
   const [toastMessage, setToastMessage] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
-  // Update checker — runs ONLY inside installed Native Android App (disabled on Vercel website)
+  // Update checker — checks for new app version releases (enabled on both Web & Native App)
   const { updateAvailable, latestVersion, latestDownloadUrl, currentVersion } = useAppUpdateChecker({
-    enabled: isAppInstalledOrStandalone()
+    enabled: true
   });
 
-  // Show update modal when a new version is detected inside Android App
+  // Show update modal when a new version is detected
   useEffect(() => {
-    if (updateAvailable && isAppInstalledOrStandalone()) {
+    if (updateAvailable) {
       setShowUpdateModal(true);
     }
   }, [updateAvailable]);

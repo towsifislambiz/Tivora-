@@ -28,23 +28,6 @@ const ICE_SERVERS = {
   rtcpMuxPolicy: 'require'
 };
 
-/**
- * Optimize SDP for High-Fidelity Audio & Smooth HD 720p 30fps Video
- */
-function optimizeSDP(sdp) {
-  if (!sdp) return sdp;
-  let lines = sdp.split('\r\n');
-  for (let i = 0; i < lines.length; i++) {
-    // Opus Audio Quality Optimization (128kbps stereo + in-band FEC)
-    if (lines[i].includes('a=fmtp:') && (lines[i].includes('opus') || lines[i].includes('111'))) {
-      if (!lines[i].includes('maxaveragebitrate')) {
-        lines[i] += ';maxaveragebitrate=128000;stereo=1;sprop-stereo=1;usedtx=1';
-      }
-    }
-  }
-  return lines.join('\r\n');
-}
-
 export function useWebRTC() {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -68,7 +51,7 @@ export function useWebRTC() {
       try {
         await pcRef.current.addIceCandidate(new RTCIceCandidate(candidateData));
       } catch (e) {
-        console.warn('Queued ICE candidate add notice:', e);
+        console.warn('Queued ICE candidate notice:', e);
       }
     }
   }, []);
@@ -143,21 +126,17 @@ export function useWebRTC() {
       throw new Error(msg);
     }
 
-    // High-Fidelity Audio & Crisp 720p HD Video (Optimized for zero-lag 30fps)
     const constraints = {
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
-        autoGainControl: true,
-        latency: 0,
-        sampleRate: 48000,
-        channelCount: 1
+        autoGainControl: true
       },
       video: callType === 'video' ? {
         facingMode: customFacing,
         width: { ideal: 1280, max: 1280 },
         height: { ideal: 720, max: 720 },
-        frameRate: { ideal: 30, max: 30 }
+        frameRate: { ideal: 30 }
       } : false
     };
 
@@ -166,7 +145,7 @@ export function useWebRTC() {
       try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (constraintErr) {
-        console.warn("Primary media constraints notice, applying basic fallback:", constraintErr);
+        console.warn("Primary media constraint notice, falling back to basic media request:", constraintErr);
         stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: callType === 'video' ? { facingMode: customFacing } : false
@@ -193,7 +172,7 @@ export function useWebRTC() {
     } catch (err) {
       let friendlyMsg = "Could not access camera or microphone.";
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        friendlyMsg = `${callType === 'video' ? 'Camera and Microphone' : 'Microphone'} permission was denied. Please allow permissions in settings.`;
+        friendlyMsg = `${callType === 'video' ? 'Camera and Microphone' : 'Microphone'} access permission was denied. Please allow permissions in settings.`;
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         friendlyMsg = `No ${callType === 'video' ? 'camera/microphone' : 'microphone'} device found.`;
       }
@@ -229,22 +208,17 @@ export function useWebRTC() {
       offerToReceiveVideo: true
     });
 
-    const optimizedSdp = optimizeSDP(offer.sdp);
-    const finalOffer = { type: offer.type, sdp: optimizedSdp };
-
-    await pcRef.current.setLocalDescription(finalOffer);
-    return finalOffer;
+    await pcRef.current.setLocalDescription(offer);
+    return { type: offer.type, sdp: offer.sdp };
   }, []);
 
   const handleOfferAndCreateAnswer = useCallback(async (offerSdp) => {
     if (!pcRef.current) throw new Error("PeerConnection not initialized");
 
-    const formattedOffer = {
-      type: offerSdp.type || 'offer',
-      sdp: optimizeSDP(offerSdp.sdp || offerSdp)
-    };
+    const sdpString = typeof offerSdp === 'string' ? offerSdp : offerSdp.sdp;
+    const typeString = typeof offerSdp === 'object' && offerSdp.type ? offerSdp.type : 'offer';
 
-    await pcRef.current.setRemoteDescription(new RTCSessionDescription(formattedOffer));
+    await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: typeString, sdp: sdpString }));
     hasRemoteDescriptionRef.current = true;
     await processQueuedIceCandidates();
 
@@ -272,21 +246,17 @@ export function useWebRTC() {
       offerToReceiveVideo: true
     });
 
-    const optimizedSdp = optimizeSDP(answer.sdp);
-    const finalAnswer = { type: answer.type, sdp: optimizedSdp };
-
-    await pcRef.current.setLocalDescription(finalAnswer);
-    return finalAnswer;
+    await pcRef.current.setLocalDescription(answer);
+    return { type: answer.type, sdp: answer.sdp };
   }, [processQueuedIceCandidates]);
 
   const handleAnswer = useCallback(async (answerSdp) => {
     if (!pcRef.current) return;
     if (pcRef.current.signalingState !== 'stable') {
-      const formattedAnswer = {
-        type: answerSdp.type || 'answer',
-        sdp: optimizeSDP(answerSdp.sdp || answerSdp)
-      };
-      await pcRef.current.setRemoteDescription(new RTCSessionDescription(formattedAnswer));
+      const sdpString = typeof answerSdp === 'string' ? answerSdp : answerSdp.sdp;
+      const typeString = typeof answerSdp === 'object' && answerSdp.type ? answerSdp.type : 'answer';
+
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: typeString, sdp: sdpString }));
       hasRemoteDescriptionRef.current = true;
       await processQueuedIceCandidates();
 
