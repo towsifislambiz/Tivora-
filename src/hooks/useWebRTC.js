@@ -130,7 +130,9 @@ export function useWebRTC() {
         if (!exists) remoteStreamRef.current.addTrack(event.track);
       }
 
-      setRemoteStream(remoteStreamRef.current);
+      const updatedStream = new MediaStream(remoteStreamRef.current.getTracks());
+      remoteStreamRef.current = updatedStream;
+      setRemoteStream(updatedStream);
     };
 
     pc.onconnectionstatechange = () => {

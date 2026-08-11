@@ -164,22 +164,25 @@ export function CallProvider({ children }) {
     setCallState('calling');
 
     try {
-      // 1. Create Firestore call doc first to get callId
-      const newCallData = await createCallDoc(callerData, receiverData, type);
-      const callId = newCallData.callId;
-      setActiveCall(newCallData);
-
-      // 2. Get microphone/camera
+      // 1. Get microphone/camera FIRST so media tracks are ready
       await webRTC.initLocalMedia(type, 'user');
 
-      // 3. Create PeerConnection (auto-attaches tracks from step 2)
+      // 2. Create PeerConnection (tracks auto-attach)
+      const tempCallIdRef = { id: null };
       const pc = webRTC.createPeerConnection((candidate) => {
-        addIceCandidate(callId, true, candidate);
+        if (tempCallIdRef.id) {
+          addIceCandidate(tempCallIdRef.id, true, candidate);
+        }
       });
 
-      // 4. Create SDP offer and store in Firestore
+      // 3. Create SDP offer FIRST
       const offer = await webRTC.createOffer();
-      await sendCallOffer(callId, offer);
+
+      // 4. Create Firestore call doc WITH offer pre-populated from millisecond 0!
+      const newCallData = await createCallDoc(callerData, receiverData, type, offer);
+      const callId = newCallData.callId;
+      tempCallIdRef.id = callId;
+      setActiveCall(newCallData);
 
       // 5. Listen for receiver's ICE candidates
       unsubIceCandidatesRef.current = subscribeToIceCandidates(callId, true, (candidate) => {

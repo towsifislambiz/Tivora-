@@ -25,7 +25,7 @@ const CALLS_COLLECTION = "calls";
  * @param {Object} receiver - { uid, displayName, username, photoURL }
  * @param {string} type - 'voice' | 'video'
  */
-export async function createCallDoc(caller, receiver, type) {
+export async function createCallDoc(caller, receiver, type, initialOffer = null) {
   if (!caller?.uid || !receiver?.uid) throw new Error("Caller and Receiver UIDs are required.");
 
   const conversationId = getCanonicalConversationId(caller.uid, receiver.uid);
@@ -45,7 +45,7 @@ export async function createCallDoc(caller, receiver, type) {
     receiverPhotoURL: receiver.photoURL || '',
     type, // 'voice' | 'video'
     status: 'calling', // 'calling' | 'ringing' | 'connecting' | 'connected' | 'reconnecting' | 'rejected' | 'cancelled' | 'missed' | 'busy' | 'failed' | 'ended'
-    offer: null,
+    offer: initialOffer ? { type: initialOffer.type, sdp: initialOffer.sdp } : null,
     answer: null,
     createdAt: serverTimestamp(),
     startedAt: null,
