@@ -12,6 +12,7 @@ import {
 } from "../firebase/auth";
 import { getUserDocument } from "../firebase/firestore";
 import { generateUniqueUsername, reserveUsernameAndCreateProfile, updateUserProfile } from "../firebase/profileService";
+import { initPresenceTracker } from "../firebase/presenceService";
 
 export const AuthContext = createContext(null);
 
@@ -28,6 +29,8 @@ export function AuthProvider({ children }) {
   );
 
   useEffect(() => {
+    let cleanupPresence = null;
+
     // Safety max timeout to prevent any stuck splash loader screen
     const maxTimeout = setTimeout(() => {
       setLoading(false);
@@ -37,6 +40,10 @@ export function AuthProvider({ children }) {
       if (user) {
         setCurrentUser(user);
         
+        // Initialize Real-Time Messenger Presence Heartbeat
+        if (cleanupPresence) cleanupPresence();
+        cleanupPresence = initPresenceTracker(user.uid);
+
         // 1. Immediately load local persistent cache if available
         const localCacheKey = `${STORAGE_KEY_PREFIX}${user.uid}`;
         const cachedStr = localStorage.getItem(localCacheKey);
@@ -58,18 +65,29 @@ export function AuthProvider({ children }) {
           let docData = await getUserDocument(user.uid);
           
           // Auto-initialize profile with permanent username if doc or username is missing
-          if (!docData || !docData.username) {
-            const isDemo = user.email && user.email.toLowerCase() === DEMO_EMAIL.toLowerCase();
-            const autoUsername = isDemo ? "towsif123" : await generateUniqueUsername(user.displayName, user.email, user.uid);
-            
+          if (user.email && user.email.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
+            docData = {
+              ...(docData || {}),
+              uid: user.uid,
+              displayName: "Tivora Bot 🤖",
+              username: "tivorabot",
+              email: user.email,
+              bio: "Official Tivora Demo & Preview Bot ID 🤖. Read-only guest account.",
+              hobbies: ["System Preview", "UI Testing"],
+              location: "Tivora System",
+              isDemo: true,
+              emailVerified: true
+            };
+          } else if (!docData || !docData.username) {
+            const autoUsername = await generateUniqueUsername(user.displayName, user.email, user.uid);
             docData = await reserveUsernameAndCreateProfile(user.uid, autoUsername, {
-              displayName: user.displayName || (isDemo ? "Towsif Islam" : "Tivora User"),
+              displayName: user.displayName || "Tivora User",
               email: user.email || "",
-              bio: isDemo ? "Full Stack Developer building digital products & community applications 🚀" : "Building cool digital experiences with Tivora 🚀",
+              bio: "Building cool digital experiences with Tivora 🚀",
               hobbies: ["Coding", "Gaming", "UI Design"],
-              location: isDemo ? "Dhaka, Bangladesh" : "San Francisco, CA",
-              isDemo,
-              emailVerified: user.emailVerified || isDemo
+              location: "San Francisco, CA",
+              isDemo: false,
+              emailVerified: user.emailVerified || false
             });
           }
 
@@ -82,6 +100,7 @@ export function AuthProvider({ children }) {
           console.error("Error fetching user document from Firestore:", err);
         }
       } else {
+        if (cleanupPresence) cleanupPresence();
         setCurrentUser(null);
         setUserDoc(null);
         setLoading(false);
@@ -91,6 +110,7 @@ export function AuthProvider({ children }) {
 
     return () => {
       clearTimeout(maxTimeout);
+      if (cleanupPresence) cleanupPresence();
       unsubscribe();
     };
   }, []);
@@ -105,7 +125,7 @@ export function AuthProvider({ children }) {
 
   const handleDemoSignIn = async () => {
     const demoPassword = "DemoUser123!";
-    const demoName = "Towsif Islam";
+    const demoName = "Tivora Bot 🤖";
 
     try {
       return await authSignIn(DEMO_EMAIL, demoPassword);

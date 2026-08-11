@@ -22,6 +22,9 @@ import GlassDock from './components/layout/GlassDock';
 import AmbientBackground from './components/ui/AmbientBackground';
 import Toast from './components/common/Toast';
 import CreatePostModal from './components/common/CreatePostModal';
+import InstallAppModal from './components/common/InstallAppModal';
+import MobileInstallBanner from './components/common/MobileInstallBanner';
+import UpdateModal from './components/common/UpdateModal';
 
 // Call System Components (Phase 12)
 import IncomingCallModal from './components/calls/IncomingCallModal';
@@ -31,20 +34,23 @@ import VideoCallScreen from './components/calls/VideoCallScreen';
 
 // Main Application Pages
 import Home from './pages/Home';
-import Profile from './pages/Profile';
-import PostDetail from './pages/PostDetail';
-import SavedPosts from './pages/SavedPosts';
-import Explore from './pages/Explore';
-import Groups from './pages/Groups';
-import GroupDetails from './pages/GroupDetails';
-import Friends from './pages/Friends';
-import Messages from './pages/Messages';
-import Notifications from './pages/Notifications';
-import SearchResults from './pages/SearchResults';
-import Settings from './pages/Settings';
-import AdminModeration from './pages/AdminModeration';
-import NotFound from './pages/NotFound';
-import DesignSystem from './pages/DesignSystem';
+import PageSkeleton from './components/common/PageSkeleton';
+import PageErrorBoundary from './components/common/PageErrorBoundary';
+
+const Profile = React.lazy(() => import('./pages/Profile'));
+const PostDetail = React.lazy(() => import('./pages/PostDetail'));
+const SavedPosts = React.lazy(() => import('./pages/SavedPosts'));
+const Explore = React.lazy(() => import('./pages/Explore'));
+const Groups = React.lazy(() => import('./pages/Groups'));
+const GroupDetails = React.lazy(() => import('./pages/GroupDetails'));
+const Friends = React.lazy(() => import('./pages/Friends'));
+const Messages = React.lazy(() => import('./pages/Messages'));
+const Notifications = React.lazy(() => import('./pages/Notifications'));
+const SearchResults = React.lazy(() => import('./pages/SearchResults'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const AdminModeration = React.lazy(() => import('./pages/AdminModeration'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
+const DesignSystem = React.lazy(() => import('./pages/DesignSystem'));
 
 // Data
 import { initialSuggestedFriends } from './data/mockData';
@@ -60,6 +66,7 @@ function MainAppContent() {
 
   const [isMobileSim, setIsMobileSim] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
   const [suggestedFriends, setSuggestedFriends] = useState(initialSuggestedFriends);
@@ -183,105 +190,119 @@ function MainAppContent() {
   };
 
   const renderActiveScreen = () => {
-    switch (activeScreen) {
-      case 'home':
-        return (
-          <Home
-            onOpenCreateModal={() => setIsCreateModalOpen(true)}
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onShowToast={showToast}
-            createdPostSignal={createdPostSignal}
-          />
-        );
-      case 'profile':
-        return (
-          <Profile
-            targetUsername={selectedProfileUsername}
-            onBackToHome={() => handleNavigateScreen('home')}
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onShowToast={showToast}
-          />
-        );
-      case 'post_detail':
-        return (
-          <PostDetail
-            postId={selectedPostId}
-            onBackToHome={() => handleNavigateScreen('home')}
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onShowToast={showToast}
-          />
-        );
-      case 'saved':
-        return (
-          <SavedPosts
-            onBackToHome={() => handleNavigateScreen('home')}
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onShowToast={showToast}
-          />
-        );
-      case 'explore':
-        return (
-          <Explore
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onSelectPostId={handleSelectPostId}
-            setActiveScreen={handleNavigateScreen}
-            onShowToast={showToast}
-          />
-        );
-      case 'groups':
-        return (
-          <Groups
-            setActiveScreen={handleNavigateScreen}
-            onSelectGroupSlug={handleSelectGroupSlug}
-            onShowToast={showToast}
-          />
-        );
-      case 'group_details':
-        return (
-          <GroupDetails
-            groupSlug={selectedGroupSlug}
-            onBack={() => handleNavigateScreen('groups')}
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onShowToast={showToast}
-          />
-        );
-      case 'friends':
-        return (
-          <Friends
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onShowToast={showToast}
-          />
-        );
-      case 'messages':
-        return <Messages onSelectProfileUsername={handleSelectProfileUsername} onShowToast={showToast} />;
-      case 'notifications':
-        return (
-          <Notifications
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onSelectPostId={handleSelectPostId}
-            setActiveScreen={handleNavigateScreen}
-            onShowToast={showToast}
-          />
-        );
-      case 'search_results':
-        return (
-          <SearchResults
-            queryTerm={searchQueryTerm}
-            onSelectProfileUsername={handleSelectProfileUsername}
-            onSelectPostId={handleSelectPostId}
-            setActiveScreen={handleNavigateScreen}
-            onShowToast={showToast}
-          />
-        );
-      case 'settings':
-        return <Settings onShowToast={showToast} />;
-      case 'admin_moderation':
-        return <AdminModeration onShowToast={showToast} />;
-      case 'design_system':
-        return <DesignSystem />;
-      default:
-        return <NotFound onGoHome={() => handleNavigateScreen('home')} />;
-    }
+    return (
+      <PageErrorBoundary>
+        <React.Suspense fallback={<PageSkeleton />}>
+          {(() => {
+          switch (activeScreen) {
+            case 'home':
+              return (
+                <Home
+                  onOpenCreateModal={() => setIsCreateModalOpen(true)}
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onShowToast={showToast}
+                  createdPostSignal={createdPostSignal}
+                />
+              );
+            case 'profile':
+              return (
+                <Profile
+                  targetUsername={selectedProfileUsername}
+                  onBackToHome={() => handleNavigateScreen('home')}
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onShowToast={showToast}
+                />
+              );
+            case 'post_detail':
+              return (
+                <PostDetail
+                  postId={selectedPostId}
+                  onBackToHome={() => handleNavigateScreen('home')}
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onShowToast={showToast}
+                />
+              );
+            case 'saved':
+              return (
+                <SavedPosts
+                  onBackToHome={() => handleNavigateScreen('home')}
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onShowToast={showToast}
+                />
+              );
+            case 'explore':
+              return (
+                <Explore
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onSelectPostId={handleSelectPostId}
+                  setActiveScreen={handleNavigateScreen}
+                  onShowToast={showToast}
+                />
+              );
+            case 'groups':
+              return (
+                <Groups
+                  setActiveScreen={handleNavigateScreen}
+                  onSelectGroupSlug={handleSelectGroupSlug}
+                  onShowToast={showToast}
+                />
+              );
+            case 'group_details':
+              return (
+                <GroupDetails
+                  groupSlug={selectedGroupSlug}
+                  onBack={() => handleNavigateScreen('groups')}
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onShowToast={showToast}
+                />
+              );
+            case 'friends':
+              return (
+                <Friends
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onShowToast={showToast}
+                />
+              );
+            case 'messages':
+              return (
+                <Messages 
+                  setActiveScreen={handleNavigateScreen}
+                  onSelectProfileUsername={handleSelectProfileUsername} 
+                  onShowToast={showToast} 
+                />
+              );
+            case 'notifications':
+              return (
+                <Notifications
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onSelectPostId={handleSelectPostId}
+                  setActiveScreen={handleNavigateScreen}
+                  onShowToast={showToast}
+                />
+              );
+            case 'search_results':
+              return (
+                <SearchResults
+                  queryTerm={searchQueryTerm}
+                  onSelectProfileUsername={handleSelectProfileUsername}
+                  onSelectPostId={handleSelectPostId}
+                  setActiveScreen={handleNavigateScreen}
+                  onShowToast={showToast}
+                />
+              );
+            case 'settings':
+              return <Settings onShowToast={showToast} />;
+            case 'admin_moderation':
+              return <AdminModeration onShowToast={showToast} />;
+            case 'design_system':
+              return <DesignSystem />;
+            default:
+              return <NotFound onGoHome={() => handleNavigateScreen('home')} />;
+          }
+        })()}
+      </React.Suspense>
+    </PageErrorBoundary>
+    );
   };
 
   return (
@@ -317,6 +338,11 @@ function MainAppContent() {
               setIsMobileSim={setIsMobileSim}
             />
 
+            {/* Mobile App Installation Banner */}
+            <MobileInstallBanner
+              onOpenInstallModal={() => setIsInstallModalOpen(true)}
+            />
+
             {/* 2. Main Topbar Header */}
             <Topbar
               setActiveScreen={(screen) => handleNavigateScreen(screen)}
@@ -324,6 +350,7 @@ function MainAppContent() {
               onSelectProfileUsername={handleSelectProfileUsername}
               onSelectPostId={handleSelectPostId}
               onShowToast={showToast}
+              onOpenInstallModal={() => setIsInstallModalOpen(true)}
             />
 
             {/* 3. Main Body Container (Desktop 3 Columns or Mobile Simulator) */}
@@ -348,6 +375,7 @@ function MainAppContent() {
                   activeScreen={activeScreen}
                   setActiveScreen={(screen) => handleNavigateScreen(screen)}
                   onShowToast={showToast}
+                  onOpenInstallModal={() => setIsInstallModalOpen(true)}
                 />
                 
                 <main className={`min-w-0 ${activeScreen === 'messages' ? 'h-full min-h-0 flex flex-col flex-1 overflow-hidden' : ''}`}>
@@ -388,6 +416,16 @@ function MainAppContent() {
               onPostCreated={handlePostCreated}
               onShowToast={showToast}
             />
+
+            {/* Install Mobile App Modal */}
+            <InstallAppModal
+              isOpen={isInstallModalOpen}
+              onClose={() => setIsInstallModalOpen(false)}
+              onShowToast={showToast}
+            />
+
+            {/* Live Version Update Modal */}
+            <UpdateModal />
 
             {/* 6. Toast Notification */}
             <Toast toastMessage={toastMessage} />

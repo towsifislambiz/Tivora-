@@ -12,9 +12,12 @@ import {
   UserX, 
   Loader2, 
   X,
-  MessageSquare
+  MessageSquare,
+  Phone,
+  Video
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useCall } from '../../context/CallContext';
 import UserAvatar from '../common/UserAvatar';
 import { 
   getFriendshipStatus, 
@@ -27,7 +30,8 @@ import {
 import RemoveFriendModal from './RemoveFriendModal';
 
 export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onShowToast }) {
-  const { currentUser } = useAuth();
+  const { currentUser, isDemoUser } = useAuth();
+  const { startCall } = useCall();
 
   const [copied, setCopied] = useState(false);
   const [relationshipStatus, setRelationshipStatus] = useState('none'); // 'self' | 'none' | 'pending_sent' | 'pending_received' | 'friends'
@@ -86,6 +90,10 @@ export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onSho
 
   // Action: Add Friend
   const handleAddFriendClick = async () => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to add friends! 🔒");
+      return;
+    }
     if (!currentUser?.uid || !targetUid || pendingAction) return;
     setPendingAction(true);
     setRelationshipStatus('pending_sent');
@@ -285,6 +293,34 @@ export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onSho
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>Message</span>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      await startCall(profile, 'voice');
+                    } catch (err) {
+                      if (onShowToast) onShowToast(err.message || 'Failed to start voice call.');
+                    }
+                  }}
+                  className="p-2.5 rounded-full bg-brand-lavender text-brand-purple hover:bg-brand-purple hover:text-white transition-all shadow-soft-xs"
+                  title="Start Voice Call"
+                >
+                  <Phone className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      await startCall(profile, 'video');
+                    } catch (err) {
+                      if (onShowToast) onShowToast(err.message || 'Failed to start video call.');
+                    }
+                  }}
+                  className="p-2.5 rounded-full bg-brand-lavender text-brand-purple hover:bg-brand-purple hover:text-white transition-all shadow-soft-xs"
+                  title="Start Video Call"
+                >
+                  <Video className="w-4 h-4" />
                 </button>
               </div>
             ) : null}

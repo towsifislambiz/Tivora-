@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+
+// Optional TURN relay — required for calls between peers behind symmetric NAT
+// (most mobile carrier networks). Configure VITE_TURN_URL / VITE_TURN_USERNAME /
+// VITE_TURN_CREDENTIAL to enable; STUN alone cannot traverse those networks.
+const TURN_URL = import.meta.env?.VITE_TURN_URL;
+const TURN_USERNAME = import.meta.env?.VITE_TURN_USERNAME;
+const TURN_CREDENTIAL = import.meta.env?.VITE_TURN_CREDENTIAL;
 
 const ICE_SERVERS = {
   iceServers: [
@@ -6,9 +13,19 @@ const ICE_SERVERS = {
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' }
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.services.mozilla.com:3478' },
+    ...(TURN_URL
+      ? [{
+          urls: TURN_URL.split(',').map((u) => u.trim()).filter(Boolean),
+          username: TURN_USERNAME,
+          credential: TURN_CREDENTIAL
+        }]
+      : [])
   ],
-  iceCandidatePoolSize: 10
+  iceCandidatePoolSize: 10,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require'
 };
 
 export function useWebRTC() {
@@ -60,18 +77,33 @@ export function useWebRTC() {
     };
 
     pc.ontrack = (event) => {
-      let streamToSet = null;
-      if (event.streams && event.streams[0]) {
-        streamToSet = new MediaStream(event.streams[0].getTracks());
-      } else {
-        if (!remoteStreamRef.current) {
-          remoteStreamRef.current = new MediaStream();
-        }
-        remoteStreamRef.current.addTrack(event.track);
-        streamToSet = new MediaStream(remoteStreamRef.current.getTracks());
+      console.log("WebRTC ontrack event:", event.track.kind, event.track.id, event.streams);
+
+      if (!remoteStreamRef.current) {
+        remoteStreamRef.current = new MediaStream();
       }
-      remoteStreamRef.current = streamToSet;
-      setRemoteStream(streamToSet);
+
+      // If stream is provided by WebRTC, grab all its tracks
+      if (event.streams && event.streams[0]) {
+        event.streams[0].getTracks().forEach((track) => {
+          track.enabled = true;
+          const exists = remoteStreamRef.current.getTracks().some((t) => t.id === track.id);
+          if (!exists) {
+            remoteStreamRef.current.addTrack(track);
+          }
+        });
+      }
+
+      // Always ensure the event track itself is added
+      if (event.track) {
+        event.track.enabled = true;
+        const exists = remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id);
+        if (!exists) {
+          remoteStreamRef.current.addTrack(event.track);
+        }
+      }
+
+      setRemoteStream(remoteStreamRef.current);
     };
 
     pc.onconnectionstatechange = () => {
@@ -94,6 +126,22 @@ export function useWebRTC() {
   const initLocalMedia = useCallback(async (callType, customFacing = 'user') => {
     setPermissionError(null);
 
+    // Reuse the already-acquired stream (the ringing screen pre-warms the mic/camera).
+    // Without this, accepting a call grabs a SECOND stream and orphans the first —
+    // leaving the camera light on and the old mic track running for the whole call.
+    const existing = localStreamRef.current;
+    if (existing && existing.getTracks().some((t) => t.readyState === 'live')) {
+      const needsVideo = callType === 'video';
+      const hasLiveVideo = existing.getVideoTracks().some((t) => t.readyState === 'live');
+      if (!needsVideo || hasLiveVideo) {
+        existing.getTracks().forEach((t) => { t.enabled = true; });
+        return existing;
+      }
+      // Upgrading voice → video: release the audio-only stream first.
+      existing.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+    }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       const msg = "WebRTC media is not supported on this browser or device.";
       setPermissionError(msg);
@@ -102,9 +150,15 @@ export function useWebRTC() {
 
     const constraints = {
       audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
+        echoCancellation: { ideal: true },
+        noiseSuppression: { ideal: true },
+        autoGainControl: { ideal: true },
+        googEchoCancellation: { ideal: true },
+        googAutoGainControl: { ideal: true },
+        googNoiseSuppression: { ideal: true },
+        googHighpassFilter: { ideal: true },
+        googTypingNoiseDetection: { ideal: true },
+        channelCount: { ideal: 1 }
       },
       video: callType === 'video' ? {
         facingMode: customFacing,
@@ -134,8 +188,11 @@ export function useWebRTC() {
       if (pcRef.current) {
         const senders = pcRef.current.getSenders();
         stream.getTracks().forEach((track) => {
-          const hasTrack = senders.some((s) => s.track && (s.track.id === track.id || s.track.kind === track.kind));
-          if (!hasTrack) {
+          track.enabled = true;
+          const sender = senders.find((s) => (s.track ? s.track.kind === track.kind : s.kind === track.kind));
+          if (sender) {
+            sender.replaceTrack(track).catch(() => {});
+          } else {
             pcRef.current.addTrack(track, stream);
           }
         });
@@ -165,50 +222,78 @@ export function useWebRTC() {
       const senders = pcRef.current.getSenders();
       localStreamRef.current.getTracks().forEach((track) => {
         track.enabled = true;
-        const exists = senders.some((s) => s.track && s.track.kind === track.kind);
-        if (!exists) {
+        const sender = senders.find((s) => (s.track ? s.track.kind === track.kind : s.kind === track.kind));
+        if (sender) {
+          sender.replaceTrack(track).catch(() => {});
+        } else {
           pcRef.current.addTrack(track, localStreamRef.current);
         }
       });
     }
 
-    const offer = await pcRef.current.createOffer();
+    pcRef.current.getTransceivers().forEach((t) => {
+      if (t.direction !== 'sendrecv') {
+        try { t.direction = 'sendrecv'; } catch (e) {}
+      }
+    });
+
+    const offer = await pcRef.current.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true
+    });
     await pcRef.current.setLocalDescription(offer);
     return offer;
   }, []);
 
-  // Receive Offer & Generate SDP Answer (Receiver — Guarantees 2-Way SendRecv Audio)
+  // Receive Offer & Generate SDP Answer (Receiver — Guarantees 2-Way SendRecv Audio & Video)
   const handleOfferAndCreateAnswer = useCallback(async (offerSdp) => {
     if (!pcRef.current) throw new Error("PeerConnection not initialized");
-
-    // CRITICAL FIX FOR RECEIVER VOICE: Re-verify receiver's local media tracks are active and attached before answer SDP generation
-    if (localStreamRef.current) {
-      const senders = pcRef.current.getSenders();
-      localStreamRef.current.getTracks().forEach((track) => {
-        track.enabled = true;
-        const exists = senders.some((s) => s.track && s.track.kind === track.kind);
-        if (!exists) {
-          pcRef.current.addTrack(track, localStreamRef.current);
-        }
-      });
-    }
 
     await pcRef.current.setRemoteDescription(new RTCSessionDescription(offerSdp));
     hasRemoteDescriptionRef.current = true;
     await processQueuedIceCandidates();
 
-    const answer = await pcRef.current.createAnswer();
+    // CRITICAL FIX FOR RECEIVER VIDEO & AUDIO: Bind receiver's local media tracks to transceivers AFTER setting remote description
+    if (localStreamRef.current) {
+      const senders = pcRef.current.getSenders();
+      localStreamRef.current.getTracks().forEach((track) => {
+        track.enabled = true;
+        const sender = senders.find((s) => (s.track ? s.track.kind === track.kind : s.kind === track.kind));
+        if (sender) {
+          sender.replaceTrack(track).catch(() => {});
+        } else {
+          pcRef.current.addTrack(track, localStreamRef.current);
+        }
+      });
+    }
+
+    pcRef.current.getTransceivers().forEach((t) => {
+      if (t.direction !== 'sendrecv') {
+        try { t.direction = 'sendrecv'; } catch (e) {}
+      }
+    });
+
+    const answer = await pcRef.current.createAnswer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true
+    });
     await pcRef.current.setLocalDescription(answer);
     return answer;
   }, [processQueuedIceCandidates]);
 
-  // Receive Answer
+  // Receive Answer (Caller)
   const handleAnswer = useCallback(async (answerSdp) => {
     if (!pcRef.current) return;
     if (pcRef.current.signalingState !== 'stable') {
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(answerSdp));
       hasRemoteDescriptionRef.current = true;
       await processQueuedIceCandidates();
+
+      pcRef.current.getTransceivers().forEach((t) => {
+        if (t.direction !== 'sendrecv') {
+          try { t.direction = 'sendrecv'; } catch (e) {}
+        }
+      });
     }
   }, [processQueuedIceCandidates]);
 
@@ -257,23 +342,32 @@ export function useWebRTC() {
     const nextFacing = facingMode === 'user' ? 'environment' : 'user';
     setFacingMode(nextFacing);
 
-    // Stop current video track
     const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
-    if (oldVideoTrack) oldVideoTrack.stop();
 
     try {
+      // 1. Acquire new camera stream FIRST (Prevents blackout gap)
       const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: nextFacing }
+        video: { facingMode: nextFacing, width: { ideal: 1280 }, height: { ideal: 720 } }
       });
       const newTrack = newStream.getVideoTracks()[0];
+      if (!newTrack) return;
 
-      if (pcRef.current && oldVideoTrack) {
-        const sender = pcRef.current.getSenders().find((s) => s.track && s.track.kind === 'video');
-        if (sender) sender.replaceTrack(newTrack);
+      // 2. Replace track in RTCRtpSender synchronously
+      if (pcRef.current) {
+        const senders = pcRef.current.getSenders();
+        const sender = senders.find((s) => (s.track ? s.track.kind === 'video' : s.kind === 'video'));
+        if (sender) {
+          await sender.replaceTrack(newTrack);
+        }
       }
 
-      // Replace in localStreamRef
-      localStreamRef.current.removeTrack(oldVideoTrack);
+      // 3. Stop old video track AFTER new track is active
+      if (oldVideoTrack) {
+        localStreamRef.current.removeTrack(oldVideoTrack);
+        oldVideoTrack.stop();
+      }
+
+      // 4. Update local stream reference
       localStreamRef.current.addTrack(newTrack);
       setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
     } catch (err) {
@@ -306,7 +400,8 @@ export function useWebRTC() {
 
     setIsMuted(false);
     setIsVideoOff(false);
-    setConnectionState('closed');
+    // Back to 'idle', not 'closed' — the next call starts from a clean slate.
+    setConnectionState('idle');
     setPermissionError(null);
     iceCandidatesQueueRef.current = [];
     hasRemoteDescriptionRef.current = false;
@@ -318,7 +413,9 @@ export function useWebRTC() {
     };
   }, [cleanupMedia]);
 
-  return {
+  // Memoised so consumers can safely depend on the returned object without
+  // re-running effects on every render of the provider.
+  return useMemo(() => ({
     localStream,
     remoteStream,
     isMuted,
@@ -336,5 +433,23 @@ export function useWebRTC() {
     toggleVideo,
     switchCamera,
     cleanupMedia
-  };
+  }), [
+    localStream,
+    remoteStream,
+    isMuted,
+    isVideoOff,
+    facingMode,
+    connectionState,
+    permissionError,
+    createPeerConnection,
+    initLocalMedia,
+    createOffer,
+    handleOfferAndCreateAnswer,
+    handleAnswer,
+    addRemoteIceCandidate,
+    toggleMute,
+    toggleVideo,
+    switchCamera,
+    cleanupMedia
+  ]);
 }
