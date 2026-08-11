@@ -190,15 +190,18 @@ export function CallProvider({ children }) {
       unsubCallDocRef.current = subscribeToCallDoc(callId, async (updatedCall) => {
         if (!updatedCall) return;
 
-        if (
-          (updatedCall.status === 'connecting' || updatedCall.status === 'connected') &&
-          updatedCall.answer
-        ) {
+        if (updatedCall.answer) {
           if (pc.signalingState !== 'stable') {
-            await webRTC.handleAnswer(updatedCall.answer);
+            try {
+              await webRTC.handleAnswer(updatedCall.answer);
+            } catch (ansErr) {
+              console.warn("handleAnswer notice:", ansErr);
+            }
           }
           setCallState('connected');
           if (callingTimeoutRef.current) clearTimeout(callingTimeoutRef.current);
+        } else if (updatedCall.status === 'connecting') {
+          setCallState('connecting');
         } else if (updatedCall.status === 'rejected') {
           setCallState('rejected');
           await recordCallHistory(updatedCall);
