@@ -1,28 +1,41 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const ICE_SERVERS = {
+// Environment variable overrides with fallback TURN Relay
+const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || 'openrelay';
+const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || 'openrelay';
+const TURN_URL = import.meta.env.VITE_TURN_URL || 'openrelay.metered.ca';
+
+/**
+ * Single Production-Ready RTC Configuration
+ */
+const rtcConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+
     { urls: 'stun:global.stun.twilio.com:3478' },
     { urls: 'stun:stun.cloudflare.com:3478' },
+
     {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelay',
-      credential: 'openrelay'
+      urls: `turn:${TURN_URL}:80`,
+      username: TURN_USERNAME,
+      credential: TURN_CREDENTIAL
     },
     {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelay',
-      credential: 'openrelay'
+      urls: `turn:${TURN_URL}:443`,
+      username: TURN_USERNAME,
+      credential: TURN_CREDENTIAL
     },
     {
-      urls: 'turns:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelay',
-      credential: 'openrelay'
+      urls: `turns:${TURN_URL}:443?transport=tcp`,
+      username: TURN_USERNAME,
+      credential: TURN_CREDENTIAL
     }
   ],
+
   iceCandidatePoolSize: 10,
   bundlePolicy: 'max-bundle',
   rtcpMuxPolicy: 'require'
@@ -43,27 +56,50 @@ export function useWebRTC() {
   const iceCandidatesQueueRef = useRef([]);
   const hasRemoteDescriptionRef = useRef(false);
 
+  /**
+   * Drain queued remote ICE candidates after setRemoteDescription()
+   */
   const processQueuedIceCandidates = useCallback(async () => {
-    if (!pcRef.current || iceCandidatesQueueRef.current.length === 0) return;
-    const queued = [...iceCandidatesQueueRef.current];
+    const pc = pcRef.current;
+    if (!pc || !hasRemoteDescriptionRef.current) {
+      return;
+    }
+
+    const queuedCandidates = [...iceCandidatesQueueRef.current];
     iceCandidatesQueueRef.current = [];
-    for (const candidateData of queued) {
+
+    for (const candidateData of queuedCandidates) {
       try {
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidateData));
-      } catch (e) {
-        console.warn('Queued ICE candidate notice:', e);
+        const candidate = candidateData instanceof RTCIceCandidate
+          ? candidateData
+          : new RTCIceCandidate(candidateData);
+        await pc.addIceCandidate(candidate);
+      } catch (error) {
+        console.warn('[WebRTC] Failed to add queued ICE candidate:', error);
       }
     }
   }, []);
 
+  /**
+   * Initialize RTCPeerConnection using the single rtcConfig
+   */
   const createPeerConnection = useCallback((onIceCandidate) => {
     if (pcRef.current) return pcRef.current;
 
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    // Reset state for new call
+    iceCandidatesQueueRef.current = [];
+    hasRemoteDescriptionRef.current = false;
 
+    const pc = new RTCPeerConnection(rtcConfig);
+
+    // Attach existing local tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current);
+        try {
+          pc.addTrack(track, localStreamRef.current);
+        } catch (e) {
+          console.warn('[WebRTC] Track attach error:', e);
+        }
       });
     }
 
@@ -74,6 +110,8 @@ export function useWebRTC() {
     };
 
     pc.ontrack = (event) => {
+      console.log('[WebRTC] Track received:', event.track?.kind, event.track?.id);
+
       if (!remoteStreamRef.current) {
         remoteStreamRef.current = new MediaStream();
       }
@@ -82,41 +120,53 @@ export function useWebRTC() {
         event.streams[0].getTracks().forEach((track) => {
           track.enabled = true;
           const exists = remoteStreamRef.current.getTracks().some((t) => t.id === track.id);
-          if (!exists) {
-            remoteStreamRef.current.addTrack(track);
-          }
+          if (!exists) remoteStreamRef.current.addTrack(track);
         });
       }
 
       if (event.track) {
         event.track.enabled = true;
         const exists = remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id);
-        if (!exists) {
-          remoteStreamRef.current.addTrack(event.track);
-        }
+        if (!exists) remoteStreamRef.current.addTrack(event.track);
       }
 
-      const updatedStream = new MediaStream(remoteStreamRef.current.getTracks());
-      remoteStreamRef.current = updatedStream;
-      setRemoteStream(updatedStream);
+      setRemoteStream(remoteStreamRef.current);
     };
 
     pc.onconnectionstatechange = () => {
-      setConnectionState(pc.connectionState);
+      console.log('[WebRTC] Connection state:', pc.connectionState);
+      if (pc.connectionState) {
+        setConnectionState(pc.connectionState);
+      }
     };
 
     pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
         setConnectionState('reconnecting');
+        if (pc.iceConnectionState === 'failed') {
+          try {
+            pc.restartIce();
+          } catch (err) {
+            console.warn('[WebRTC] ICE restart attempt error:', err);
+          }
+        }
       } else if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         setConnectionState('connected');
       }
+    };
+
+    pc.onsignalingstatechange = () => {
+      console.log('[WebRTC] Signaling state:', pc.signalingState);
     };
 
     pcRef.current = pc;
     return pc;
   }, []);
 
+  /**
+   * Acquire local media stream (microphone / camera)
+   */
   const initLocalMedia = useCallback(async (callType, customFacing = 'user') => {
     setPermissionError(null);
 
@@ -145,7 +195,7 @@ export function useWebRTC() {
       try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (constraintErr) {
-        console.warn("Primary media constraint notice, falling back to basic media request:", constraintErr);
+        console.warn("[WebRTC] Primary media constraint notice, falling back:", constraintErr);
         stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: callType === 'video' ? { facingMode: customFacing } : false
@@ -161,7 +211,7 @@ export function useWebRTC() {
           track.enabled = true;
           const sender = senders.find((s) => (s.track ? s.track.kind === track.kind : s.kind === track.kind));
           if (sender) {
-            sender.replaceTrack(track).catch(() => {});
+            sender.replaceTrack(track).catch((e) => console.warn('[WebRTC] replaceTrack error:', e));
           } else {
             pcRef.current.addTrack(track, stream);
           }
@@ -170,6 +220,7 @@ export function useWebRTC() {
 
       return stream;
     } catch (err) {
+      console.error("[WebRTC] getUserMedia error:", err);
       let friendlyMsg = "Could not access camera or microphone.";
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         friendlyMsg = `${callType === 'video' ? 'Camera and Microphone' : 'Microphone'} access permission was denied. Please allow permissions in settings.`;
@@ -181,104 +232,119 @@ export function useWebRTC() {
     }
   }, []);
 
+  /**
+   * Create SDP Offer (Caller)
+   */
   const createOffer = useCallback(async () => {
-    if (!pcRef.current) throw new Error("PeerConnection not initialized");
+    if (!pcRef.current) throw new Error("[WebRTC] PeerConnection not initialized");
 
-    if (localStreamRef.current) {
-      const senders = pcRef.current.getSenders();
-      localStreamRef.current.getTracks().forEach((track) => {
-        track.enabled = true;
-        const sender = senders.find((s) => (s.track ? s.track.kind === track.kind : s.kind === track.kind));
-        if (sender) {
-          sender.replaceTrack(track).catch(() => {});
-        } else {
-          pcRef.current.addTrack(track, localStreamRef.current);
-        }
-      });
-    }
-
-    pcRef.current.getTransceivers().forEach((t) => {
-      if (t.direction !== 'sendrecv') {
-        try { t.direction = 'sendrecv'; } catch (e) {}
+    try {
+      if (localStreamRef.current) {
+        const senders = pcRef.current.getSenders();
+        localStreamRef.current.getTracks().forEach((track) => {
+          track.enabled = true;
+          const sender = senders.find((s) => (s.track ? s.track.kind === track.kind : s.kind === track.kind));
+          if (sender) {
+            sender.replaceTrack(track).catch(() => {});
+          } else {
+            pcRef.current.addTrack(track, localStreamRef.current);
+          }
+        });
       }
-    });
 
-    const offer = await pcRef.current.createOffer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: true
-    });
+      const offer = await pcRef.current.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
 
-    await pcRef.current.setLocalDescription(offer);
-    return { type: offer.type, sdp: offer.sdp };
+      await pcRef.current.setLocalDescription(offer);
+      return { type: offer.type, sdp: offer.sdp };
+    } catch (err) {
+      console.error("[WebRTC] createOffer error:", err);
+      throw err;
+    }
   }, []);
 
+  /**
+   * Handle Remote Offer and Create SDP Answer (Receiver)
+   */
   const handleOfferAndCreateAnswer = useCallback(async (offerSdp) => {
-    if (!pcRef.current) throw new Error("PeerConnection not initialized");
+    if (!pcRef.current) throw new Error("[WebRTC] PeerConnection not initialized");
 
-    const sdpString = typeof offerSdp === 'string' ? offerSdp : offerSdp.sdp;
-    const typeString = typeof offerSdp === 'object' && offerSdp.type ? offerSdp.type : 'offer';
-
-    await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: typeString, sdp: sdpString }));
-    hasRemoteDescriptionRef.current = true;
-    await processQueuedIceCandidates();
-
-    if (localStreamRef.current) {
-      const senders = pcRef.current.getSenders();
-      localStreamRef.current.getTracks().forEach((track) => {
-        track.enabled = true;
-        const sender = senders.find((s) => (s.track ? s.track.kind === track.kind : s.kind === track.kind));
-        if (sender) {
-          sender.replaceTrack(track).catch(() => {});
-        } else {
-          pcRef.current.addTrack(track, localStreamRef.current);
-        }
-      });
-    }
-
-    pcRef.current.getTransceivers().forEach((t) => {
-      if (t.direction !== 'sendrecv') {
-        try { t.direction = 'sendrecv'; } catch (e) {}
-      }
-    });
-
-    const answer = await pcRef.current.createAnswer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: true
-    });
-
-    await pcRef.current.setLocalDescription(answer);
-    return { type: answer.type, sdp: answer.sdp };
-  }, [processQueuedIceCandidates]);
-
-  const handleAnswer = useCallback(async (answerSdp) => {
-    if (!pcRef.current) return;
-    if (pcRef.current.signalingState !== 'stable') {
-      const sdpString = typeof answerSdp === 'string' ? answerSdp : answerSdp.sdp;
-      const typeString = typeof answerSdp === 'object' && answerSdp.type ? answerSdp.type : 'answer';
+    try {
+      const sdpString = typeof offerSdp === 'string' ? offerSdp : offerSdp?.sdp;
+      const typeString = typeof offerSdp === 'object' && offerSdp?.type ? offerSdp.type : 'offer';
 
       await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: typeString, sdp: sdpString }));
       hasRemoteDescriptionRef.current = true;
       await processQueuedIceCandidates();
 
-      pcRef.current.getTransceivers().forEach((t) => {
-        if (t.direction !== 'sendrecv') {
-          try { t.direction = 'sendrecv'; } catch (e) {}
-        }
+      if (localStreamRef.current) {
+        const senders = pcRef.current.getSenders();
+        localStreamRef.current.getTracks().forEach((track) => {
+          track.enabled = true;
+          const sender = senders.find((s) => (s.track ? s.track.kind === track.kind : s.kind === track.kind));
+          if (sender) {
+            sender.replaceTrack(track).catch(() => {});
+          } else {
+            pcRef.current.addTrack(track, localStreamRef.current);
+          }
+        });
+      }
+
+      const answer = await pcRef.current.createAnswer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
       });
+
+      await pcRef.current.setLocalDescription(answer);
+      return { type: answer.type, sdp: answer.sdp };
+    } catch (err) {
+      console.error("[WebRTC] handleOfferAndCreateAnswer error:", err);
+      throw err;
     }
   }, [processQueuedIceCandidates]);
 
+  /**
+   * Handle Remote Answer SDP (Caller)
+   */
+  const handleAnswer = useCallback(async (answerSdp) => {
+    if (!pcRef.current) return;
+    try {
+      if (pcRef.current.signalingState !== 'stable') {
+        const sdpString = typeof answerSdp === 'string' ? answerSdp : answerSdp?.sdp;
+        const typeString = typeof answerSdp === 'object' && answerSdp?.type ? answerSdp.type : 'answer';
+
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: typeString, sdp: sdpString }));
+        hasRemoteDescriptionRef.current = true;
+        await processQueuedIceCandidates();
+      }
+    } catch (err) {
+      console.error("[WebRTC] handleAnswer error:", err);
+      throw err;
+    }
+  }, [processQueuedIceCandidates]);
+
+  /**
+   * Add Remote ICE Candidate with safe queueing
+   */
   const addRemoteIceCandidate = useCallback(async (candidateData) => {
-    if (!pcRef.current || !candidateData) return;
+    if (!pcRef.current || !candidateData) {
+      return;
+    }
+
     if (!hasRemoteDescriptionRef.current) {
       iceCandidatesQueueRef.current.push(candidateData);
       return;
     }
+
     try {
-      const candidate = new RTCIceCandidate(candidateData);
+      const candidate = candidateData instanceof RTCIceCandidate
+        ? candidateData
+        : new RTCIceCandidate(candidateData);
       await pcRef.current.addIceCandidate(candidate);
-    } catch (err) {
-      console.warn("addRemoteIceCandidate notice:", err);
+    } catch (error) {
+      console.warn('[WebRTC] Failed to add remote ICE candidate:', error);
     }
   }, []);
 
@@ -327,11 +393,15 @@ export function useWebRTC() {
       localStreamRef.current.addTrack(newTrack);
       setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
     } catch (err) {
-      console.warn("switchCamera notice:", err);
+      console.warn("[WebRTC] switchCamera error:", err);
     }
   }, [facingMode]);
 
+  /**
+   * Full cleanup when call ends
+   */
   const cleanupMedia = useCallback(() => {
+    console.log('[WebRTC] Performing full media & peer connection cleanup');
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -349,6 +419,7 @@ export function useWebRTC() {
       pcRef.current.onicecandidate = null;
       pcRef.current.onconnectionstatechange = null;
       pcRef.current.oniceconnectionstatechange = null;
+      pcRef.current.onsignalingstatechange = null;
       pcRef.current.close();
       pcRef.current = null;
     }

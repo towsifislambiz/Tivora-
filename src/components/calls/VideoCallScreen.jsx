@@ -18,50 +18,51 @@ export default function VideoCallScreen() {
   const containerRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const audioCtxRef = useRef(null);
-  const sourceNodeRef = useRef(null);
 
   const { localStream, remoteStream, isMuted, isVideoOff, facingMode, toggleMute, toggleVideo, switchCamera } = webRTC;
 
-  // Bind Local Video Stream (always muted — no echo from own mic)
+  // Bind Local Video Stream (always muted to prevent feedback)
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.muted = true;
-      localVideoRef.current.play().catch(() => {});
+    const videoEl = localVideoRef.current;
+    if (videoEl && localStream) {
+      if (videoEl.srcObject !== localStream) {
+        videoEl.srcObject = localStream;
+        videoEl.muted = true;
+        videoEl.play().catch(() => {});
+      }
     }
-  }, [localStream, callState]);
+  }, [localStream]);
 
-  // Bind Remote Video & Audio with Autoplay Policy Unlock
+  // Bind Remote Video & Audio Stream Stable
   useEffect(() => {
     const videoEl = remoteVideoRef.current;
     if (!videoEl || !remoteStream) return;
 
-    videoEl.srcObject = remoteStream;
-    videoEl.muted = false;
-    videoEl.volume = 1.0;
+    if (videoEl.srcObject !== remoteStream) {
+      videoEl.srcObject = remoteStream;
+      videoEl.muted = false;
+      videoEl.volume = 1.0;
 
-    const playVideo = async () => {
-      try {
-        await videoEl.play();
-      } catch (err) {
-        console.warn("Video/Audio autoplay blocked by browser policy, attaching unlock listener:", err);
-        const unlock = () => {
-          if (videoEl) {
-            videoEl.play().catch(() => {});
-          }
-          document.removeEventListener('click', unlock);
-          document.removeEventListener('touchstart', unlock);
-        };
-        document.addEventListener('click', unlock);
-        document.addEventListener('touchstart', unlock);
-      }
-    };
+      const playVideo = async () => {
+        try {
+          await videoEl.play();
+        } catch (err) {
+          console.warn("Video autoplay policy notice, attaching unlock listener:", err);
+          const unlock = () => {
+            if (videoEl) videoEl.play().catch(() => {});
+            document.removeEventListener('click', unlock);
+            document.removeEventListener('touchstart', unlock);
+          };
+          document.addEventListener('click', unlock);
+          document.addEventListener('touchstart', unlock);
+        }
+      };
 
-    playVideo();
+      playVideo();
+    }
   }, [remoteStream]);
 
-  // Sync fullscreen state with browser fullscreen API
+  // Sync fullscreen state with browser API
   useEffect(() => {
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFsChange);
@@ -96,7 +97,6 @@ export default function VideoCallScreen() {
     >
       {/* ── Main Remote Video View ── */}
       <div className="absolute inset-0 w-full h-full bg-slate-900 flex items-center justify-center">
-        {/* Always keep video in DOM so ref binding is stable */}
         <video
           ref={remoteVideoRef}
           autoPlay

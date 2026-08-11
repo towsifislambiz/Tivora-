@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2, PhoneOff, Sparkles, ShieldCheck } from 'lucide-react';
+import { Mic, MicOff, Volume2, PhoneOff, ShieldCheck } from 'lucide-react';
 import UserAvatar from '../common/UserAvatar';
 import { useCall } from '../../context/CallContext';
 
@@ -9,34 +9,33 @@ export default function VoiceCallScreen() {
 
   const { isMuted, toggleMute, remoteStream } = webRTC;
 
-  // Guaranteed High-Fidelity Remote Audio Playback with Autoplay Policy Unlock
+  // Bind Remote Audio Stream Stable & Play
   useEffect(() => {
     const audioEl = remoteAudioRef.current;
     if (!audioEl || !remoteStream) return;
 
-    // Attach stream directly to audio element (unmuted, full volume)
-    audioEl.srcObject = remoteStream;
-    audioEl.muted = false;
-    audioEl.volume = 1.0;
+    if (audioEl.srcObject !== remoteStream) {
+      audioEl.srcObject = remoteStream;
+      audioEl.muted = false;
+      audioEl.volume = 1.0;
 
-    const playAudio = async () => {
-      try {
-        await audioEl.play();
-      } catch (err) {
-        console.warn("Audio autoplay blocked by browser policy, attaching unlock listener:", err);
-        const unlock = () => {
-          if (audioEl) {
-            audioEl.play().catch(() => {});
-          }
-          document.removeEventListener('click', unlock);
-          document.removeEventListener('touchstart', unlock);
-        };
-        document.addEventListener('click', unlock);
-        document.addEventListener('touchstart', unlock);
-      }
-    };
+      const playAudio = async () => {
+        try {
+          await audioEl.play();
+        } catch (err) {
+          console.warn("Audio autoplay policy notice, attaching user interaction listener:", err);
+          const unlock = () => {
+            if (audioEl) audioEl.play().catch(() => {});
+            document.removeEventListener('click', unlock);
+            document.removeEventListener('touchstart', unlock);
+          };
+          document.addEventListener('click', unlock);
+          document.addEventListener('touchstart', unlock);
+        }
+      };
 
-    playAudio();
+      playAudio();
+    }
   }, [remoteStream]);
 
   if (!activeCall || activeCall.type !== 'voice' || (callState !== 'connected' && callState !== 'connecting' && callState !== 'reconnecting')) {
@@ -126,7 +125,8 @@ export default function VoiceCallScreen() {
             <span className="text-[0.7rem] font-semibold text-brand-mutedText">Audio</span>
           </div>
         </div>
-        {/* Hidden Zero-Latency Remote Voice Audio Element */}
+
+        {/* Hidden Remote Voice Audio Element */}
         <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
       </div>
     </div>

@@ -158,11 +158,12 @@ export async function addIceCandidate(callId, isCaller, candidate) {
   if (!callId || !candidate) return;
   try {
     const candidateData = typeof candidate.toJSON === 'function' ? candidate.toJSON() : candidate;
+    if (!candidateData || !candidateData.candidate) return;
     const subcollectionName = isCaller ? "callerCandidates" : "receiverCandidates";
     const candidatesRef = collection(db, CALLS_COLLECTION, callId, subcollectionName);
     await addDoc(candidatesRef, candidateData);
   } catch (err) {
-    console.warn("addIceCandidate error:", err);
+    console.warn("[WebRTC] addIceCandidate error:", err);
   }
 }
 
