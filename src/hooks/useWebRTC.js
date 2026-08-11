@@ -72,10 +72,15 @@ export function useWebRTC() {
 
     for (const candidateData of queuedCandidates) {
       try {
-        const candidate = candidateData instanceof RTCIceCandidate
+        const cleanCandidate = candidateData instanceof RTCIceCandidate
           ? candidateData
-          : new RTCIceCandidate(candidateData);
-        await pc.addIceCandidate(candidate);
+          : new RTCIceCandidate({
+              candidate: candidateData.candidate,
+              sdpMid: candidateData.sdpMid !== undefined ? candidateData.sdpMid : null,
+              sdpMLineIndex: candidateData.sdpMLineIndex !== undefined ? candidateData.sdpMLineIndex : null,
+              usernameFragment: candidateData.usernameFragment || undefined
+            });
+        await pc.addIceCandidate(cleanCandidate);
       } catch (error) {
         console.warn('[WebRTC] Failed to add queued ICE candidate:', error);
       }
@@ -106,8 +111,11 @@ export function useWebRTC() {
     }
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && onIceCandidate) {
-        onIceCandidate(event.candidate);
+      if (event.candidate) {
+        const candidateStr = event.candidate.candidate || '';
+        const candType = event.candidate.type || (candidateStr.includes('typ host') ? 'host' : candidateStr.includes('typ srflx') ? 'srflx' : candidateStr.includes('typ relay') ? 'relay' : 'unknown');
+        console.log(`[ICE] Local candidate generated (type: ${candType}, sdpMid: ${event.candidate.sdpMid})`);
+        if (onIceCandidate) onIceCandidate(event.candidate);
       }
     };
 
@@ -345,10 +353,15 @@ export function useWebRTC() {
     }
 
     try {
-      const candidate = candidateData instanceof RTCIceCandidate
+      const cleanCandidate = candidateData instanceof RTCIceCandidate
         ? candidateData
-        : new RTCIceCandidate(candidateData);
-      await pcRef.current.addIceCandidate(candidate);
+        : new RTCIceCandidate({
+            candidate: candidateData.candidate,
+            sdpMid: candidateData.sdpMid !== undefined ? candidateData.sdpMid : null,
+            sdpMLineIndex: candidateData.sdpMLineIndex !== undefined ? candidateData.sdpMLineIndex : null,
+            usernameFragment: candidateData.usernameFragment || undefined
+          });
+      await pcRef.current.addIceCandidate(cleanCandidate);
     } catch (error) {
       console.warn('[WebRTC] Failed to add remote ICE candidate:', error);
     }
