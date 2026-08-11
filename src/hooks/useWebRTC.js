@@ -72,14 +72,23 @@ export function useWebRTC() {
 
     for (const candidateData of queuedCandidates) {
       try {
-        const cleanCandidate = candidateData instanceof RTCIceCandidate
-          ? candidateData
-          : new RTCIceCandidate({
-              candidate: candidateData.candidate,
-              sdpMid: candidateData.sdpMid !== undefined ? candidateData.sdpMid : null,
-              sdpMLineIndex: candidateData.sdpMLineIndex !== undefined ? candidateData.sdpMLineIndex : null,
-              usernameFragment: candidateData.usernameFragment || undefined
-            });
+        if (!candidateData || !candidateData.candidate) continue;
+        let cleanCandidate;
+        if (candidateData instanceof RTCIceCandidate) {
+          cleanCandidate = candidateData;
+        } else {
+          const candInit = { candidate: candidateData.candidate };
+          if (candidateData.sdpMid !== undefined && candidateData.sdpMid !== null) {
+            candInit.sdpMid = String(candidateData.sdpMid);
+          }
+          if (candidateData.sdpMLineIndex !== undefined && candidateData.sdpMLineIndex !== null) {
+            candInit.sdpMLineIndex = Number(candidateData.sdpMLineIndex);
+          }
+          if (candidateData.usernameFragment) {
+            candInit.usernameFragment = String(candidateData.usernameFragment);
+          }
+          cleanCandidate = new RTCIceCandidate(candInit);
+        }
         await pc.addIceCandidate(cleanCandidate);
       } catch (error) {
         console.warn('[WebRTC] Failed to add queued ICE candidate:', error);
@@ -353,14 +362,22 @@ export function useWebRTC() {
     }
 
     try {
-      const cleanCandidate = candidateData instanceof RTCIceCandidate
-        ? candidateData
-        : new RTCIceCandidate({
-            candidate: candidateData.candidate,
-            sdpMid: candidateData.sdpMid !== undefined ? candidateData.sdpMid : null,
-            sdpMLineIndex: candidateData.sdpMLineIndex !== undefined ? candidateData.sdpMLineIndex : null,
-            usernameFragment: candidateData.usernameFragment || undefined
-          });
+      let cleanCandidate;
+      if (candidateData instanceof RTCIceCandidate) {
+        cleanCandidate = candidateData;
+      } else {
+        const candInit = { candidate: candidateData.candidate };
+        if (candidateData.sdpMid !== undefined && candidateData.sdpMid !== null) {
+          candInit.sdpMid = String(candidateData.sdpMid);
+        }
+        if (candidateData.sdpMLineIndex !== undefined && candidateData.sdpMLineIndex !== null) {
+          candInit.sdpMLineIndex = Number(candidateData.sdpMLineIndex);
+        }
+        if (candidateData.usernameFragment) {
+          candInit.usernameFragment = String(candidateData.usernameFragment);
+        }
+        cleanCandidate = new RTCIceCandidate(candInit);
+      }
       await pcRef.current.addIceCandidate(cleanCandidate);
     } catch (error) {
       console.warn('[WebRTC] Failed to add remote ICE candidate:', error);
