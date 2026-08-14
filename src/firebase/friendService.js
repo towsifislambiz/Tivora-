@@ -12,7 +12,8 @@ import {
   limit,
   startAfter,
   runTransaction,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 } from "firebase/firestore";
 import { db } from "./FirebaseConfig";
 import { getUserDocument } from "./firestore";
@@ -41,6 +42,16 @@ export function getCanonicalFriendshipId(uid1, uid2) {
 export async function sendFriendRequest(fromUid, toUid, actorData = {}) {
   if (!fromUid || !toUid) throw new Error("Requester and Receiver UIDs are required.");
   if (fromUid === toUid) throw new Error("You cannot send a friend request to yourself.");
+
+  const fromUserDoc = await getUserDocument(fromUid);
+  if (
+    actorData?.isDemo ||
+    fromUserDoc?.isDemo ||
+    fromUserDoc?.email?.toLowerCase() === "demo@tivora.app" ||
+    fromUserDoc?.username === "tivorabot"
+  ) {
+    throw new Error("DEMO_USER_RESTRICTED");
+  }
 
   const friendshipId = getCanonicalFriendshipId(fromUid, toUid);
   const friendshipRef = doc(db, FRIENDSHIPS_COLLECTION, friendshipId);
@@ -428,6 +439,35 @@ export async function getSuggestedUsers(currentUid, limitCount = 5) {
   } catch (err) {
     console.warn("getSuggestedUsers error:", err);
     return [];
+  }
+}
+
+/**
+ * Subscribe to real-time incoming pending friend requests count for a user
+ * @param {string} uid 
+ * @param {function(number, Array): void} callback 
+ * @returns {function(): void} Unsubscribe function
+ */
+export function subscribeToIncomingFriendRequests(uid, callback) {
+  if (!uid) return () => {};
+  try {
+    const friendshipsRef = collection(db, FRIENDSHIPS_COLLECTION);
+    const q = query(
+      friendshipsRef,
+      where("receiverId", "==", uid),
+      where("status", "==", "pending")
+    );
+
+    return onSnapshot(q, (snap) => {
+      callback(snap.size, snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      console.warn("subscribeToIncomingFriendRequests notice:", err);
+      callback(0, []);
+    });
+  } catch (err) {
+    console.warn("subscribeToIncomingFriendRequests err:", err);
+    callback(0, []);
+    return () => {};
   }
 }
 

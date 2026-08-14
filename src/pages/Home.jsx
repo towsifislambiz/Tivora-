@@ -5,61 +5,74 @@ import FeedTabs from '../components/feed/FeedTabs';
 import PostCard from '../components/feed/PostCard';
 import { getHomeFeedPosts, subscribeToHomeFeed } from '../firebase/postService';
 import { FastCache } from '../utils/fastCache';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Home({ onOpenCreateModal, onSelectProfileUsername, onShowToast, createdPostSignal }) {
-  const cachedFeed = FastCache.get('home_feed');
+  const { currentUser, isDemoUser } = useAuth();
+  const cacheKey = isDemoUser ? 'home_feed_demo' : `home_feed_${currentUser?.uid || 'guest'}`;
+  const cachedFeed = FastCache.get(cacheKey);
 
   const [posts, setPosts] = useState(cachedFeed?.posts || []);
   const [lastDocSnap, setLastDocSnap] = useState(cachedFeed?.lastDocSnap || null);
-  const [loading, setLoading] = useState(!cachedFeed);
+  const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(cachedFeed ? cachedFeed.hasMore : true);
 
-  // Real-time Live Feed Subscription (New posts from ANY friend appear live instantly without reload!)
+  const userContext = { currentUid: currentUser?.uid, isDemoUser };
+
+  // Real-time Live Feed Subscription (Instant 0ms render for fast net, skeleton only on slow net >250ms)
   useEffect(() => {
-    if (!FastCache.get('home_feed')) {
-      setLoading(true);
+    let networkDelayTimer = null;
+
+    if (!posts || posts.length === 0) {
+      networkDelayTimer = setTimeout(() => {
+        setLoading(true);
+      }, 250);
     }
 
     const unsubscribe = subscribeToHomeFeed(8, ({ posts: fetchedPosts, lastDocSnap: newLastDoc }) => {
+      if (networkDelayTimer) clearTimeout(networkDelayTimer);
       setPosts(fetchedPosts);
       setLastDocSnap(newLastDoc);
       const moreAvailable = Boolean(fetchedPosts.length >= 8);
       setHasMore(moreAvailable);
       setLoading(false);
 
-      FastCache.set('home_feed', {
+      FastCache.set(cacheKey, {
         posts: fetchedPosts,
         lastDocSnap: newLastDoc,
         hasMore: moreAvailable
       });
-    });
+    }, userContext);
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      if (networkDelayTimer) clearTimeout(networkDelayTimer);
+      unsubscribe();
+    };
+  }, [currentUser?.uid, isDemoUser, cacheKey]);
 
   // Sync newly created post when created via modal or card
   useEffect(() => {
     if (createdPostSignal) {
       setPosts((prev) => {
         const updated = [createdPostSignal, ...prev.filter(p => p.id !== createdPostSignal.id)];
-        FastCache.set('home_feed', { posts: updated, lastDocSnap, hasMore });
+        FastCache.set(cacheKey, { posts: updated, lastDocSnap, hasMore });
         return updated;
       });
     }
-  }, [createdPostSignal]);
+  }, [createdPostSignal, cacheKey]);
 
   const handleLoadMore = async () => {
     if (!lastDocSnap || loadingMore) return;
     setLoadingMore(true);
 
-    const { posts: newPosts, lastDocSnap: nextLastDoc } = await getHomeFeedPosts(8, lastDocSnap);
+    const { posts: newPosts, lastDocSnap: nextLastDoc } = await getHomeFeedPosts(8, lastDocSnap, userContext);
     if (newPosts.length > 0) {
       setPosts((prev) => {
         const updated = [...prev, ...newPosts];
         const moreAvailable = newPosts.length >= 8;
         setHasMore(moreAvailable);
-        FastCache.set('home_feed', { posts: updated, lastDocSnap: nextLastDoc, hasMore: moreAvailable });
+        FastCache.set(cacheKey, { posts: updated, lastDocSnap: nextLastDoc, hasMore: moreAvailable });
         return updated;
       });
       setLastDocSnap(nextLastDoc);

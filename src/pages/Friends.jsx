@@ -29,16 +29,20 @@ export default function Friends({ onSelectProfileUsername, onShowToast }) {
   const [activeTab, setActiveTab] = useState('my_friends'); // 'my_friends' | 'incoming_requests' | 'sent_requests'
 
   // Tab 1: My Friends
-  const [friendsList, setFriendsList] = useState([]);
-  const [loadingFriends, setLoadingFriends] = useState(true);
+  const cachedFriends = FastCache.get('friends_list');
+  const cachedIncoming = FastCache.get('incoming_requests');
+  const cachedSent = FastCache.get('sent_requests');
+
+  const [friendsList, setFriendsList] = useState(cachedFriends || []);
+  const [loadingFriends, setLoadingFriends] = useState(false);
 
   // Tab 2: Incoming Requests
-  const [incomingRequests, setIncomingRequests] = useState([]);
-  const [loadingIncoming, setLoadingIncoming] = useState(true);
+  const [incomingRequests, setIncomingRequests] = useState(cachedIncoming || []);
+  const [loadingIncoming, setLoadingIncoming] = useState(false);
 
   // Tab 3: Outgoing Sent Requests
-  const [sentRequests, setSentRequests] = useState([]);
-  const [loadingSent, setLoadingSent] = useState(true);
+  const [sentRequests, setSentRequests] = useState(cachedSent || []);
+  const [loadingSent, setLoadingSent] = useState(false);
 
   // Action Pending State
   const [actionPendingId, setActionPendingId] = useState(null);
@@ -46,30 +50,38 @@ export default function Friends({ onSelectProfileUsername, onShowToast }) {
   // Remove Friend Modal State
   const [selectedRemoveFriend, setSelectedRemoveFriend] = useState(null);
 
-  // Load Data based on active tab
+  // Load Data based on active tab with 0ms fast cache & 250ms grace timer
   useEffect(() => {
     if (!currentUser?.uid) return;
+    let timer = null;
 
     async function loadData() {
       if (activeTab === 'my_friends') {
-        setLoadingFriends(true);
+        if (!friendsList || friendsList.length === 0) timer = setTimeout(() => setLoadingFriends(true), 250);
         const { friends } = await getFriends(currentUser.uid, 20);
+        if (timer) clearTimeout(timer);
         setFriendsList(friends);
         setLoadingFriends(false);
+        FastCache.set('friends_list', friends);
       } else if (activeTab === 'incoming_requests') {
-        setLoadingIncoming(true);
+        if (!incomingRequests || incomingRequests.length === 0) timer = setTimeout(() => setLoadingIncoming(true), 250);
         const { requests } = await getIncomingFriendRequests(currentUser.uid, 20);
+        if (timer) clearTimeout(timer);
         setIncomingRequests(requests);
         setLoadingIncoming(false);
+        FastCache.set('incoming_requests', requests);
       } else if (activeTab === 'sent_requests') {
-        setLoadingSent(true);
+        if (!sentRequests || sentRequests.length === 0) timer = setTimeout(() => setLoadingSent(true), 250);
         const { requests } = await getOutgoingFriendRequests(currentUser.uid, 20);
+        if (timer) clearTimeout(timer);
         setSentRequests(requests);
         setLoadingSent(false);
+        FastCache.set('sent_requests', requests);
       }
     }
 
     loadData();
+    return () => { if (timer) clearTimeout(timer); };
   }, [currentUser?.uid, activeTab]);
 
   // Handle Accept Incoming Request

@@ -36,30 +36,10 @@ export function CallProvider({ children }) {
   const unsubCallDocRef = useRef(null);
   const unsubIceCandidatesRef = useRef(null);
   const isInitiatingCallRef = useRef(false);
-  const webRTCRef = useRef(webRTC);
 
   activeCallRef.current = activeCall;
   incomingCallRef.current = incomingCall;
   callStateRef.current = callState;
-  webRTCRef.current = webRTC;
-
-  // ─── Reset / Cleanup ──────────────────────────────────────────────────────
-  // Declared before the effects below because they list it as a dependency —
-  // a `const` referenced in a dep array is read during render, not after it.
-  const prewarmedCallIdRef = useRef(null);
-  const resetCallState = useCallback(() => {
-    if (unsubCallDocRef.current) { unsubCallDocRef.current(); unsubCallDocRef.current = null; }
-    if (unsubIceCandidatesRef.current) { unsubIceCandidatesRef.current(); unsubIceCandidatesRef.current = null; }
-    if (callingTimeoutRef.current) { clearTimeout(callingTimeoutRef.current); callingTimeoutRef.current = null; }
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    isInitiatingCallRef.current = false;
-    prewarmedCallIdRef.current = null;
-    webRTCRef.current.cleanupMedia();
-    setActiveCall(null);
-    setIncomingCall(null);
-    setCallState('idle');
-    setCallDuration(0);
-  }, []);
 
   // ─── 1. Incoming Call Subscription (WhatsApp Multi-Device) ────────────────
   useEffect(() => {
@@ -106,17 +86,12 @@ export function CallProvider({ children }) {
     return () => unsubscribe();
   }, [currentUser?.uid]);
 
-  // ULTRA-FAST ANSWER OPTIMIZATION: Pre-warm microphone & camera while call is ringing.
-  // Guarded by callId: `webRTC` and `initLocalMedia` must NOT be effect deps — acquiring
-  // media sets localStream, which re-renders the provider and would re-trigger this
-  // effect forever, spamming getUserMedia for the whole ring.
+  // ULTRA-FAST ANSWER OPTIMIZATION: Pre-warm microphone & camera while call is ringing
   useEffect(() => {
-    const callId = incomingCall?.callId;
-    if (!callId || callState !== 'ringing') return;
-    if (prewarmedCallIdRef.current === callId) return;
-    prewarmedCallIdRef.current = callId;
-    webRTCRef.current?.initLocalMedia(incomingCall.type, 'user').catch(() => {});
-  }, [incomingCall?.callId, incomingCall?.type, callState]);
+    if (incomingCall?.type && callState === 'ringing') {
+      webRTC.initLocalMedia(incomingCall.type, 'user').catch(() => {});
+    }
+  }, [incomingCall?.callId, incomingCall?.type, callState, webRTC]);
 
   // ─── 1b. Auto-dismiss when answered/cancelled on another device (WhatsApp Multi-Device Sync) ───────────
   useEffect(() => {
@@ -124,24 +99,20 @@ export function CallProvider({ children }) {
 
     const callId = incomingCall.callId;
     const unsub = subscribeToCallDoc(callId, (updatedCall) => {
-      // Only tear down while THIS device is still ringing. Once we've accepted,
-      // callState has moved on and resetting here would kill the live call.
-      if (callStateRef.current !== 'ringing') return;
-
       if (!updatedCall) {
-        resetCallState();
+        setIncomingCall(null);
+        setCallState('idle');
         return;
       }
-      // Status moved away from 'calling' — answered on another device ('connecting' /
-      // 'connected'), or rejected / cancelled / missed / ended / busy.
+      // If call status updated away from 'calling' (answered on another device as 'connecting'/'connected', or rejected/cancelled/missed/ended/busy)
       if (['connecting', 'connected', 'rejected', 'cancelled', 'missed', 'ended', 'busy'].includes(updatedCall.status)) {
-        // resetCallState releases the pre-warmed mic/camera acquired while ringing.
-        resetCallState();
+        setIncomingCall(null);
+        if (callStateRef.current === 'ringing') setCallState('idle');
       }
     });
 
     return () => unsub();
-  }, [incomingCall?.callId, callState, resetCallState]);
+  }, [incomingCall?.callId, callState]);
 
   // ─── Call Duration Timer ──────────────────────────────────────────────────
   useEffect(() => {
@@ -152,6 +123,20 @@ export function CallProvider({ children }) {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [callState]);
+
+  // ─── Reset / Cleanup ──────────────────────────────────────────────────────
+  const resetCallState = useCallback(() => {
+    if (unsubCallDocRef.current) { unsubCallDocRef.current(); unsubCallDocRef.current = null; }
+    if (unsubIceCandidatesRef.current) { unsubIceCandidatesRef.current(); unsubIceCandidatesRef.current = null; }
+    if (callingTimeoutRef.current) { clearTimeout(callingTimeoutRef.current); callingTimeoutRef.current = null; }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    isInitiatingCallRef.current = false;
+    webRTC.cleanupMedia();
+    setActiveCall(null);
+    setIncomingCall(null);
+    setCallState('idle');
+    setCallDuration(0);
+  }, [webRTC]);
 
   // ─── 2. Start Outgoing Call ───────────────────────────────────────────────
   const startCall = useCallback(async (receiver, type = 'voice') => {
@@ -270,7 +255,7 @@ export function CallProvider({ children }) {
       resetCallState();
       throw err;
     }
-  }, [currentUser, userDoc, isDemoUser, webRTC, resetCallState]);
+  }, [currentUser, userDoc, webRTC, resetCallState]);
 
   // ─── 3. Accept Incoming Call ──────────────────────────────────────────────
   const acceptCall = useCallback(async () => {
@@ -326,15 +311,12 @@ export function CallProvider({ children }) {
       await sendCallAnswer(callId, answer);
       setCallState('connected');
 
-      // 6. Subscribe to call doc for terminal statuses
+      // 6. Subscribe to call doc for 'ended' status
       unsubCallDocRef.current = subscribeToCallDoc(callId, (updatedCall) => {
-        if (!updatedCall) { resetCallState(); return; }
+        if (!updatedCall) return;
         if (updatedCall.status === 'ended') {
           setCallState('ended');
           setTimeout(() => resetCallState(), 1500);
-        } else if (['cancelled', 'missed', 'rejected', 'failed'].includes(updatedCall.status)) {
-          // Caller hung up before / during connect — don't strand the receiver on a dead screen.
-          resetCallState();
         }
       });
 
@@ -351,12 +333,11 @@ export function CallProvider({ children }) {
   const declineCall = useCallback(async () => {
     if (!incomingCall?.callId) return;
     const targetCall = { ...incomingCall, status: 'rejected' };
-    // resetCallState (not just setState) — the ringing screen pre-warmed the mic and
-    // camera, and those tracks must be stopped or the camera light stays on after decline.
-    resetCallState();
+    setIncomingCall(null);
+    setCallState('idle');
     await updateCallStatus(targetCall.callId, 'rejected');
     await recordCallHistory(targetCall);
-  }, [incomingCall, resetCallState]);
+  }, [incomingCall]);
 
   // ─── 5. Cancel Outgoing Call ──────────────────────────────────────────────
   const cancelCall = useCallback(async () => {

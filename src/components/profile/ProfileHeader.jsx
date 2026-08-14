@@ -28,6 +28,7 @@ import {
   getCanonicalFriendshipId 
 } from '../../firebase/friendService';
 import RemoveFriendModal from './RemoveFriendModal';
+import DemoAccountModal from '../common/DemoAccountModal';
 
 export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onShowToast }) {
   const { currentUser, isDemoUser } = useAuth();
@@ -38,6 +39,7 @@ export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onSho
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [pendingAction, setPendingAction] = useState(false);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   const displayName = profile?.displayName || 'Tivora User';
   const usernameClean = profile?.username || profile?.profileId || 'user';
@@ -88,26 +90,38 @@ export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onSho
     window.location.hash = `#messages?user=${usernameClean}`;
   };
 
+  const isDemo = Boolean(
+    isDemoUser ||
+    (currentUser?.email && currentUser.email.toLowerCase() === 'demo@tivora.app') ||
+    profile?.isDemo === true ||
+    currentUser?.isAnonymous
+  );
+
   // Action: Add Friend
   const handleAddFriendClick = async () => {
-    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
-      if (onShowToast) onShowToast("Demo Bot Account is read-only. Sign up for a free account to add friends! 🔒");
+    if (isDemo) {
+      setShowDemoModal(true);
       return;
     }
     if (!currentUser?.uid || !targetUid || pendingAction) return;
     setPendingAction(true);
-    setRelationshipStatus('pending_sent');
 
     try {
       await sendFriendRequest(currentUser.uid, targetUid, {
         displayName: currentUser.displayName || 'Tivora User',
         username: usernameClean,
-        photoURL: currentUser.photoURL || ''
+        photoURL: currentUser.photoURL || '',
+        isDemo
       });
+      setRelationshipStatus('pending_sent');
       if (onShowToast) onShowToast(`Friend request sent to ${displayName}! 🤝`);
     } catch (err) {
-      setRelationshipStatus('none');
-      if (onShowToast) onShowToast(err.message || 'Failed to send request.');
+      if (err.message === "DEMO_USER_RESTRICTED") {
+        setShowDemoModal(true);
+      } else {
+        setRelationshipStatus('none');
+        if (onShowToast) onShowToast(err.message || 'Failed to send request.');
+      }
     } finally {
       setPendingAction(false);
     }
@@ -360,6 +374,13 @@ export default function ProfileHeader({ profile, isOwner, onOpenEditModal, onSho
           onShowToast={onShowToast}
         />
       )}
+
+      {/* Demo User Account Required Modal */}
+      <DemoAccountModal
+        isOpen={showDemoModal}
+        onClose={() => setShowDemoModal(false)}
+        actionName="add friends"
+      />
     </div>
   );
 }

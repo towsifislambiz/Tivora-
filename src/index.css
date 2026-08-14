@@ -354,24 +354,4 @@ body:has(.chat-window-active) .mobile-bottom-dock,
   html {
     scroll-behavior: auto;
   }
-
-  /* Entrance transitions still resolve to their final state (the keyframes use
-     `both`), they just arrive instantly. The looping call-screen animations —
-     ringing halos, pulsing badges, the bouncing answer button — are the ones
-     that actually cause discomfort, so they stop outright. */
-  .animate-fadeIn,
-  .animate-scaleUp,
-  .animate-slideUp,
-  .animate-heartPop {
-    animation-duration: 0.01ms !important;
-  }
-
-  /* `animate-spin` is deliberately left alone — a frozen loading spinner reads
-     as a hung app, which is worse than the motion it saves. */
-  .animate-callPulse,
-  .animate-ping,
-  .animate-pulse,
-  .animate-bounce {
-    animation: none !important;
-  }
 }

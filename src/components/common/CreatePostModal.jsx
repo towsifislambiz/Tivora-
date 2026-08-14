@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { X, Image, Smile, Activity, BarChart2, Globe, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
+import { X, Image, Smile, Activity, BarChart2, Globe, Loader2, AlertCircle, ChevronDown, Users, Check } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { compressAndResizeImage } from '../../utils/imageOptimizer';
 import { createPost } from '../../firebase/postService';
@@ -15,6 +15,8 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
   const [text, setText] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [privacy, setPrivacy] = useState('public'); // 'public' | 'friends'
+  const [showPrivacyDropdown, setShowPrivacyDropdown] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
@@ -22,6 +24,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
   const [error, setError] = useState('');
 
   const textareaRef = useRef(null);
+  const privacyRef = useRef(null);
 
   const displayName = userDoc?.displayName || currentUser?.displayName || 'Tivora User';
   const username = userDoc?.username || userDoc?.profileId || currentUser?.uid || 'user';
@@ -31,11 +34,20 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
   const isOverLimit = text.length > MAX_CHARS;
   const canPost = (text.trim().length > 0 || !!imagePreviewUrl) && !isOverLimit && !posting;
 
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (privacyRef.current && !privacyRef.current.contains(e.target)) {
+        setShowPrivacyDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const processFile = useCallback(async (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     setError('');
     try {
-      // Facebook-grade instant smart image compression (Target ~100-150KB)
       const compressedDataUrl = await compressAndResizeImage(file, 1080, 1080, 150);
       setSelectedImageFile(file);
       setImagePreviewUrl(compressedDataUrl);
@@ -44,21 +56,21 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
     }
   }, []);
 
-  // Esc to dismiss, matching every other modal on the platform.
+  // Esc to dismiss
   useEffect(() => {
     if (!isOpen) return undefined;
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (showEmojiPicker) setShowEmojiPicker(false);
+        else if (showPrivacyDropdown) setShowPrivacyDropdown(false);
         else onClose();
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, showEmojiPicker]);
+  }, [isOpen, onClose, showEmojiPicker, showPrivacyDropdown]);
 
-  // Paste an image straight from the clipboard — the fastest path for
-  // screenshots, which is most of what gets posted.
+  // Paste an image
   useEffect(() => {
     if (!isOpen) return undefined;
     const onPaste = (e) => {
@@ -85,7 +97,6 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
     setImagePreviewUrl(null);
   };
 
-  /** Insert an emoji at the caret rather than always appending. */
   const handleSelectEmoji = (emoji) => {
     const el = textareaRef.current;
     if (!el) {
@@ -130,7 +141,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
         photoURL: avatarUrl
       };
 
-      const newPost = await createPost(authorInfo, trimmedText, imagePreviewUrl || selectedImageFile);
+      const newPost = await createPost(authorInfo, trimmedText, imagePreviewUrl || selectedImageFile, privacy);
 
       if (onShowToast) onShowToast('Your post has been published! 🚀');
       if (onPostCreated) onPostCreated(newPost);
@@ -138,6 +149,7 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
       setText('');
       setSelectedImageFile(null);
       setImagePreviewUrl(null);
+      setPrivacy('public');
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to publish post. Please try again.');
@@ -160,9 +172,6 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
       aria-modal="true"
       aria-label="Create post"
     >
-      {/* overflow is intentionally visible: the emoji picker is a popover that
-          extends above the footer and would otherwise be clipped away. The
-          footer carries its own bottom rounding to keep the card's corners. */}
       <div className="relative bg-brand-surface rounded-t-3xl sm:rounded-3xl w-full max-w-lg shadow-2xl border border-brand-border animate-slideUp sm:animate-none pb-safe">
         {/* Mobile Drag Handle */}
         <div className="bottom-sheet-drag-handle sm:hidden" />
@@ -204,15 +213,67 @@ export default function CreatePostModal({ isOpen, onClose, onPostCreated, onShow
             )}
             <div>
               <h4 className="font-bold text-sm text-brand-mainText">{displayName}</h4>
-              <button
-                type="button"
-                onClick={() => onShowToast('Audience selector')}
-                className="flex items-center gap-1 text-xs font-semibold text-brand-mutedText hover:text-brand-mainText bg-brand-lavender hover:bg-brand-border px-2 py-0.5 rounded-md mt-1 w-max transition-colors"
-              >
-                <Globe className="w-3 h-3" />
-                <span>Public</span>
-                <ChevronDown className="w-3 h-3" />
-              </button>
+              
+              {/* Audience Privacy Selector */}
+              <div className="relative mt-1" ref={privacyRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacyDropdown(!showPrivacyDropdown)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-brand-purple bg-brand-purple/10 hover:bg-brand-purple/20 px-2.5 py-1 rounded-lg border border-brand-purple/20 transition-all cursor-pointer"
+                >
+                  {privacy === 'public' ? (
+                    <>
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>Public</span>
+                    </>
+                  ) : (
+                    <>
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Friends</span>
+                    </>
+                  )}
+                  <ChevronDown className="w-3 h-3 text-brand-purple" />
+                </button>
+
+                {/* Privacy Dropdown Menu */}
+                {showPrivacyDropdown && (
+                  <div className="absolute left-0 top-8 z-40 w-56 bg-brand-surface rounded-2xl border border-brand-border shadow-soft-lg py-1.5 animate-in fade-in zoom-in-95 duration-150">
+                    <button
+                      type="button"
+                      onClick={() => { setPrivacy('public'); setShowPrivacyDropdown(false); }}
+                      className={`w-full px-3.5 py-2.5 text-left text-xs font-semibold flex items-center justify-between transition-colors ${
+                        privacy === 'public' ? 'bg-brand-lavender text-brand-purple' : 'text-brand-mainText hover:bg-brand-lavender/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Globe className="w-4 h-4 text-brand-purple shrink-0" />
+                        <div>
+                          <div className="font-bold">Public</div>
+                          <div className="text-[0.65rem] text-brand-mutedText font-normal">Anyone on Tivora can view</div>
+                        </div>
+                      </div>
+                      {privacy === 'public' && <Check className="w-4 h-4 text-brand-purple shrink-0" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setPrivacy('friends'); setShowPrivacyDropdown(false); }}
+                      className={`w-full px-3.5 py-2.5 text-left text-xs font-semibold flex items-center justify-between transition-colors ${
+                        privacy === 'friends' ? 'bg-brand-lavender text-brand-purple' : 'text-brand-mainText hover:bg-brand-lavender/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Users className="w-4 h-4 text-brand-purple shrink-0" />
+                        <div>
+                          <div className="font-bold">Friends</div>
+                          <div className="text-[0.65rem] text-brand-mutedText font-normal">Only accepted friends on Tivora</div>
+                        </div>
+                      </div>
+                      {privacy === 'friends' && <Check className="w-4 h-4 text-brand-purple shrink-0" />}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

@@ -3,12 +3,14 @@ import { ArrowRight, UserPlus, UserCheck, CheckCircle2, Loader2, MessageSquare }
 import { useAuth } from '../../hooks/useAuth';
 import { getFriendshipStatus, sendFriendRequest } from '../../firebase/friendService';
 import UserAvatar from '../common/UserAvatar';
+import DemoAccountModal from '../common/DemoAccountModal';
 
 export default function UserSearchResult({ user, onSelectUser, onClose, onShowToast }) {
-  const { currentUser } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
 
   const [status, setStatus] = useState('none');
   const [loadingAction, setLoadingAction] = useState(false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   const displayName = user?.displayName || 'Tivora User';
   const usernameClean = user?.username || user?.profileId || user?.uid || 'user';
@@ -16,6 +18,14 @@ export default function UserSearchResult({ user, onSelectUser, onClose, onShowTo
   const bio = user?.bio || 'Tivora community member';
   const avatarUrl = user?.photoURL || null;
   const targetUid = user?.uid;
+
+  const isDemo = Boolean(
+    isDemoUser ||
+    (currentUser?.email && currentUser.email.toLowerCase() === 'demo@tivora.app') ||
+    userDoc?.isDemo === true ||
+    userDoc?.username === 'tivorabot' ||
+    userDoc?.username === 'ethancarter'
+  );
 
   useEffect(() => {
     async function checkStatus() {
@@ -35,16 +45,29 @@ export default function UserSearchResult({ user, onSelectUser, onClose, onShowTo
 
   const handleAddFriendClick = async (e) => {
     e.stopPropagation();
+    if (isDemo) {
+      setShowDemoModal(true);
+      return;
+    }
     if (!currentUser?.uid || !targetUid || loadingAction) return;
     setLoadingAction(true);
-    setStatus('pending_sent');
 
     try {
-      await sendFriendRequest(currentUser.uid, targetUid);
+      await sendFriendRequest(currentUser.uid, targetUid, {
+        displayName: userDoc?.displayName || currentUser.displayName || 'Tivora User',
+        username: userDoc?.username || 'user',
+        photoURL: userDoc?.photoURL || currentUser.photoURL || '',
+        isDemo
+      });
+      setStatus('pending_sent');
       if (onShowToast) onShowToast(`Friend request sent to ${displayName}! 🤝`);
     } catch (err) {
-      setStatus('none');
-      if (onShowToast) onShowToast(err.message || 'Failed to send request.');
+      if (err.message === "DEMO_USER_RESTRICTED") {
+        setShowDemoModal(true);
+      } else {
+        setStatus('none');
+        if (onShowToast) onShowToast(err.message || 'Failed to send request.');
+      }
     } finally {
       setLoadingAction(false);
     }
@@ -119,6 +142,14 @@ export default function UserSearchResult({ user, onSelectUser, onClose, onShowTo
           </button>
         )}
       </div>
+
+      {/* Demo User Account Required Modal */}
+      <DemoAccountModal
+        isOpen={showDemoModal}
+        onClose={() => setShowDemoModal(false)}
+        actionName="add friends"
+      />
     </div>
   );
 }
+

@@ -5,14 +5,16 @@ import UserAvatar from '../common/UserAvatar';
 import { useAuth } from '../../hooks/useAuth';
 import { getSuggestedUsers, sendFriendRequest } from '../../firebase/friendService';
 import { UserPlus, UserCheck, Loader2 } from 'lucide-react';
+import DemoAccountModal from '../common/DemoAccountModal';
 
 export default function RightSidebar({ onSelectProfileUsername, setActiveScreen, onShowToast }) {
-  const { currentUser, userDoc } = useAuth();
+  const { currentUser, userDoc, isDemoUser } = useAuth();
 
   const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sentRequests, setSentRequests] = useState({}); // { [targetUid]: boolean }
   const [actionLoading, setActionLoading] = useState({}); // { [targetUid]: boolean }
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   useEffect(() => {
     async function loadSuggested() {
@@ -28,6 +30,10 @@ export default function RightSidebar({ onSelectProfileUsername, setActiveScreen,
   }, [currentUser?.uid]);
 
   const handleAddFriend = async (targetUser) => {
+    if (isDemoUser || currentUser?.email?.toLowerCase() === 'demo@tivora.app') {
+      setShowDemoModal(true);
+      return;
+    }
     const targetUid = targetUser.uid || targetUser.id;
     if (!currentUser?.uid || !targetUid || actionLoading[targetUid]) return;
 
@@ -169,6 +175,13 @@ export default function RightSidebar({ onSelectProfileUsername, setActiveScreen,
           </div>
         )}
       </div>
+
+      {/* Demo User Account Required Modal */}
+      <DemoAccountModal
+        isOpen={showDemoModal}
+        onClose={() => setShowDemoModal(false)}
+        actionName="add friends"
+      />
     </aside>
   );
 }

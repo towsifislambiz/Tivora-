@@ -1,11 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-
-// Optional TURN relay — required for calls between peers behind symmetric NAT
-// (most mobile carrier networks). Configure VITE_TURN_URL / VITE_TURN_USERNAME /
-// VITE_TURN_CREDENTIAL to enable; STUN alone cannot traverse those networks.
-const TURN_URL = import.meta.env?.VITE_TURN_URL;
-const TURN_USERNAME = import.meta.env?.VITE_TURN_USERNAME;
-const TURN_CREDENTIAL = import.meta.env?.VITE_TURN_CREDENTIAL;
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -14,14 +7,7 @@ const ICE_SERVERS = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'stun:stun.services.mozilla.com:3478' },
-    ...(TURN_URL
-      ? [{
-          urls: TURN_URL.split(',').map((u) => u.trim()).filter(Boolean),
-          username: TURN_USERNAME,
-          credential: TURN_CREDENTIAL
-        }]
-      : [])
+    { urls: 'stun:stun.services.mozilla.com:3478' }
   ],
   iceCandidatePoolSize: 10,
   bundlePolicy: 'max-bundle',
@@ -125,22 +111,6 @@ export function useWebRTC() {
   // Request camera / microphone media with Zero-Latency High-Fidelity Constraints
   const initLocalMedia = useCallback(async (callType, customFacing = 'user') => {
     setPermissionError(null);
-
-    // Reuse the already-acquired stream (the ringing screen pre-warms the mic/camera).
-    // Without this, accepting a call grabs a SECOND stream and orphans the first —
-    // leaving the camera light on and the old mic track running for the whole call.
-    const existing = localStreamRef.current;
-    if (existing && existing.getTracks().some((t) => t.readyState === 'live')) {
-      const needsVideo = callType === 'video';
-      const hasLiveVideo = existing.getVideoTracks().some((t) => t.readyState === 'live');
-      if (!needsVideo || hasLiveVideo) {
-        existing.getTracks().forEach((t) => { t.enabled = true; });
-        return existing;
-      }
-      // Upgrading voice → video: release the audio-only stream first.
-      existing.getTracks().forEach((t) => t.stop());
-      localStreamRef.current = null;
-    }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       const msg = "WebRTC media is not supported on this browser or device.";
@@ -400,8 +370,7 @@ export function useWebRTC() {
 
     setIsMuted(false);
     setIsVideoOff(false);
-    // Back to 'idle', not 'closed' — the next call starts from a clean slate.
-    setConnectionState('idle');
+    setConnectionState('closed');
     setPermissionError(null);
     iceCandidatesQueueRef.current = [];
     hasRemoteDescriptionRef.current = false;
@@ -413,9 +382,7 @@ export function useWebRTC() {
     };
   }, [cleanupMedia]);
 
-  // Memoised so consumers can safely depend on the returned object without
-  // re-running effects on every render of the provider.
-  return useMemo(() => ({
+  return {
     localStream,
     remoteStream,
     isMuted,
@@ -433,23 +400,5 @@ export function useWebRTC() {
     toggleVideo,
     switchCamera,
     cleanupMedia
-  }), [
-    localStream,
-    remoteStream,
-    isMuted,
-    isVideoOff,
-    facingMode,
-    connectionState,
-    permissionError,
-    createPeerConnection,
-    initLocalMedia,
-    createOffer,
-    handleOfferAndCreateAnswer,
-    handleAnswer,
-    addRemoteIceCandidate,
-    toggleMute,
-    toggleVideo,
-    switchCamera,
-    cleanupMedia
-  ]);
+  };
 }

@@ -1,33 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { Smartphone, Download, X } from 'lucide-react';
+import { isStandaloneApp, isMobileOrTablet } from '../../utils/pwaHelper';
 
 export default function MobileInstallBanner({ onOpenInstallModal }) {
   const [dismissed, setDismissed] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
+  const [isMobileDevice, setIsMobileDevice] = useState(() => isMobileOrTablet());
 
   useEffect(() => {
-    const isStandaloneMode = 
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.matchMedia('(display-mode: minimal-ui)').matches ||
-      window.navigator.standalone === true ||
-      document.referrer.includes('android-app') ||
-      localStorage.getItem('tivora_is_installed') === 'true' ||
-      window.location.search.includes('mode=app');
+    const checkState = () => {
+      setIsStandalone(isStandaloneApp());
+      setIsMobileDevice(isMobileOrTablet());
+    };
 
-    if (isStandaloneMode) {
-      setIsStandalone(true);
-    }
+    checkState();
+    window.addEventListener('resize', checkState);
 
     const handleAppInstalled = () => {
-      localStorage.setItem('tivora_is_installed', 'true');
+      try { localStorage.setItem('tivora_is_installed', 'true'); } catch (e) {}
       setIsStandalone(true);
     };
 
     window.addEventListener('appinstalled', handleAppInstalled);
-    return () => window.removeEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.removeEventListener('resize', checkState);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
 
-  if (dismissed || isStandalone) return null;
+  // Do NOT render on Desktop PC/Laptop OR inside installed standalone App
+  if (dismissed || isStandalone || !isMobileDevice) return null;
 
   return (
     <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-brand-purple text-white px-4 py-2.5 flex items-center justify-between shadow-md relative z-40 animate-fadeIn">

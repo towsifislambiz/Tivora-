@@ -5,17 +5,14 @@ import {
   Video as VideoIcon, 
   VideoOff, 
   RefreshCw, 
-  Maximize,
-  Minimize,
-  PhoneOff,
-  Loader2
+  Maximize, 
+  Minimize, 
+  PhoneOff
 } from 'lucide-react';
 import { useCall } from '../../context/CallContext';
-import { useAuth } from '../../hooks/useAuth';
 
 export default function VideoCallScreen() {
   const { activeCall, callState, callDuration, webRTC, endActiveCall } = useCall();
-  const { currentUser } = useAuth();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef(null);
@@ -24,21 +21,7 @@ export default function VideoCallScreen() {
   const audioCtxRef = useRef(null);
   const sourceNodeRef = useRef(null);
 
-  const { localStream, remoteStream, isMuted, isVideoOff, facingMode, connectionState, toggleMute, toggleVideo, switchCamera } = webRTC;
-
-  // Only offer camera switching where there is a second camera to switch to.
-  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
-  useEffect(() => {
-    if (!navigator.mediaDevices?.enumerateDevices) return;
-    let cancelled = false;
-    navigator.mediaDevices.enumerateDevices()
-      .then((devices) => {
-        if (cancelled) return;
-        setHasMultipleCameras(devices.filter((d) => d.kind === 'videoinput').length > 1);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [localStream]);
+  const { localStream, remoteStream, isMuted, isVideoOff, facingMode, toggleMute, toggleVideo, switchCamera } = webRTC;
 
   // Bind Local Video Stream (always muted — no echo from own mic)
   useEffect(() => {
@@ -102,24 +85,13 @@ export default function VideoCallScreen() {
     return null;
   }
 
-  // Show the OTHER party — the receiver was previously shown their own name.
-  const isCaller = currentUser?.uid === activeCall.callerId;
-  const partnerName = (isCaller ? activeCall.receiverDisplayName : activeCall.callerDisplayName) || 'Tivora User';
+  const partnerName = activeCall.receiverDisplayName || activeCall.callerDisplayName || 'Tivora User';
 
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
-
-  // Reflect the real transport state rather than always claiming "Live".
-  const isReconnecting = callState === 'reconnecting' || connectionState === 'reconnecting';
-  const isNegotiating = !isReconnecting && (callState === 'connecting' || !remoteStream);
-  const status = isReconnecting
-    ? { label: 'Reconnecting…', spin: true, className: 'bg-amber-500/20 border-amber-400/40 text-amber-300' }
-    : isNegotiating
-      ? { label: 'Connecting…', spin: true, className: 'bg-white/15 border-white/30 text-white' }
-      : { label: 'Live', spin: false, className: 'bg-emerald-500/20 border-emerald-400/40 text-emerald-400' };
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -157,26 +129,14 @@ export default function VideoCallScreen() {
       {/* ── Top Header Controls Overlay ── */}
       <div className="relative z-10 w-full p-4 flex items-center justify-between bg-gradient-to-b from-black/70 via-black/30 to-transparent text-white">
         <div className="flex items-center gap-3">
-          <div className={`px-3 py-1 rounded-full backdrop-blur-md border text-xs font-bold flex items-center gap-1.5 ${status.className}`}>
-            {status.spin
-              ? <Loader2 className="w-3 h-3 animate-spin" />
-              : <span className="w-2 h-2 rounded-full bg-current animate-pulse" />}
-            <span>{status.label}</span>
+          <div className="px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-400/40 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span>{callState === 'reconnecting' ? 'Reconnecting...' : 'Live'}</span>
           </div>
           <div>
             <h3 className="font-bold text-sm leading-tight">{partnerName}</h3>
-            <p className="text-xs font-mono opacity-80 tabular-nums" aria-live="polite">
-              {formatDuration(callDuration)}
-            </p>
+            <p className="text-xs font-mono opacity-80">{formatDuration(callDuration)}</p>
           </div>
-          {/* Own-mic indicator — previously the only mute feedback was the toolbar
-              button, which is off-screen while the controls are being ignored. */}
-          {isMuted && (
-            <div className="px-2.5 py-1 rounded-full bg-red-500/25 backdrop-blur-md border border-red-400/50 text-red-200 text-xs font-bold flex items-center gap-1.5">
-              <MicOff className="w-3 h-3" />
-              <span className="hidden sm:inline">Muted</span>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -232,17 +192,14 @@ export default function VideoCallScreen() {
             {isVideoOff ? <VideoOff className="w-6 h-6" /> : <VideoIcon className="w-6 h-6" />}
           </button>
 
-          {/* Switch Camera — hidden on single-camera devices, where it did nothing */}
-          {hasMultipleCameras && (
-            <button
-              onClick={() => switchCamera('video')}
-              className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-              title="Switch Camera"
-              aria-label="Switch Camera"
-            >
-              <RefreshCw className="w-6 h-6" />
-            </button>
-          )}
+          {/* Switch Camera Mobile */}
+          <button
+            onClick={() => switchCamera('video')}
+            className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-all touch-manipulation"
+            title="Switch Camera"
+          >
+            <RefreshCw className="w-6 h-6" />
+          </button>
 
           {/* End Call Button */}
           <button

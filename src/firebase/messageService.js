@@ -25,9 +25,6 @@ import { getUserDocument } from "./firestore";
 const CONVERSATIONS_COLLECTION = "conversations";
 const FRIENDSHIPS_COLLECTION = "friendships";
 
-// How many of the most recent messages an open chat subscribes to.
-const MESSAGE_WINDOW_SIZE = 100;
-
 /**
  * Returns canonical deterministic conversation ID (minUid_maxUid)
  * @param {string} uid1 
@@ -197,14 +194,9 @@ export function subscribeToMessages(conversationId, callback) {
   if (!conversationId) return () => {};
 
   const messagesRef = collection(db, CONVERSATIONS_COLLECTION, conversationId, "messages");
-  // Newest N, not oldest N: ordering ascending with a limit would pin the chat to the
-  // start of history, and dropping the limit entirely loads every message ever sent.
-  // The results are re-sorted ascending in memory below for display.
-  const q = query(messagesRef, orderBy("createdAt", "desc"), limit(MESSAGE_WINDOW_SIZE));
+  const q = query(messagesRef, orderBy("createdAt", "asc"));
 
   let isFallbackActive = false;
-  let fallbackUnsub = null;
-  let isCancelled = false;
 
   const unsub = onSnapshot(q, (snapshot) => {
     if (isFallbackActive) return;
@@ -228,9 +220,8 @@ export function subscribeToMessages(conversationId, callback) {
   }, (err) => {
     console.warn("Messages subscription notice, using fallback query:", err);
     isFallbackActive = true;
-    if (isCancelled) return; // Chat already closed — don't open a listener nobody can close.
     const fallbackQ = query(messagesRef);
-    fallbackUnsub = onSnapshot(fallbackQ, (fallbackSnap) => {
+    onSnapshot(fallbackQ, (fallbackSnap) => {
       const messages = [];
       fallbackSnap.forEach((docSnap) => {
         const data = docSnap.data();
@@ -249,13 +240,7 @@ export function subscribeToMessages(conversationId, callback) {
     });
   });
 
-  // Composite teardown — the fallback listener used to be orphaned, so every chat
-  // that hit the error path leaked a live snapshot listener for the session.
-  return () => {
-    isCancelled = true;
-    unsub();
-    if (fallbackUnsub) fallbackUnsub();
-  };
+  return unsub;
 }
 
 /**
@@ -294,22 +279,9 @@ export function subscribeToUserConversations(uid, callback) {
         const partnerUid = conv.participantA === uid ? conv.participantB : conv.participantA;
         const partnerProfile = await getUserDocument(partnerUid);
 
-        // Fetch actual latest message from messages subcollection (guarantees call logs, voice notes & text messages update sidebar).
-        // Server-side ordered + limited: reading the WHOLE subcollection here billed one
-        // document read per message in every conversation on every snapshot.
+        // Fetch actual latest message from messages subcollection (guarantees call logs, voice notes & text messages update sidebar)
         try {
-          const latestMsgQuery = query(
-            collection(db, CONVERSATIONS_COLLECTION, conv.id, "messages"),
-            orderBy("createdAt", "desc"),
-            limit(1)
-          );
-          let messagesSnap;
-          try {
-            messagesSnap = await getDocs(latestMsgQuery);
-          } catch (orderErr) {
-            // Legacy docs missing createdAt are invisible to the ordered query — fall back.
-            messagesSnap = await getDocs(collection(db, CONVERSATIONS_COLLECTION, conv.id, "messages"));
-          }
+          const messagesSnap = await getDocs(collection(db, CONVERSATIONS_COLLECTION, conv.id, "messages"));
           if (!messagesSnap.empty) {
             const msgs = messagesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             const getMs = (val) => {

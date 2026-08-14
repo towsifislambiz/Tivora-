@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useEffect, useMemo, useState } from 
 import { useAuth } from '../hooks/useAuth';
 import { subscribeToUserNotifications } from '../firebase/notificationService';
 import { subscribeToUserConversations } from '../firebase/messageService';
-import { getFriends } from '../firebase/friendService';
+import { getFriends, subscribeToIncomingFriendRequests } from '../firebase/friendService';
 
 export const RealtimeContext = createContext(null);
 
@@ -24,6 +24,7 @@ export function RealtimeProvider({ children }) {
   const [conversations, setConversations] = useState([]);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
   const [friends, setFriends] = useState([]);
+  const [pendingFriendRequestsCount, setPendingFriendRequestsCount] = useState(0);
 
   useEffect(() => {
     if (!uid) {
@@ -32,6 +33,7 @@ export function RealtimeProvider({ children }) {
       setConversations([]);
       setUnreadMsgCount(0);
       setFriends([]);
+      setPendingFriendRequestsCount(0);
       return undefined;
     }
 
@@ -49,6 +51,11 @@ export function RealtimeProvider({ children }) {
       setUnreadMsgCount(totalUnread || 0);
     });
 
+    const unsubFriendReqs = subscribeToIncomingFriendRequests(uid, (count) => {
+      if (!isMounted) return;
+      setPendingFriendRequestsCount(count || 0);
+    });
+
     // Friends are fetched once rather than per-consumer; Topbar merges them
     // into its conversation list so you can start a chat with someone you
     // have never messaged.
@@ -64,6 +71,7 @@ export function RealtimeProvider({ children }) {
       isMounted = false;
       unsubNotifs();
       unsubMsgs();
+      unsubFriendReqs();
     };
   }, [uid]);
 
@@ -105,6 +113,7 @@ export function RealtimeProvider({ children }) {
       recentConversations,
       unreadMsgCount,
       friends,
+      pendingFriendRequestsCount,
       markNotificationRead,
       markAllNotificationsRead,
     }),
@@ -115,6 +124,7 @@ export function RealtimeProvider({ children }) {
       recentConversations,
       unreadMsgCount,
       friends,
+      pendingFriendRequestsCount,
       markNotificationRead,
       markAllNotificationsRead,
     ]

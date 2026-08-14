@@ -17,8 +17,89 @@ import {
 import { db } from "./FirebaseConfig";
 import { uploadPostImage, deletePostImage } from "./storageService";
 import { compressAndResizeImage } from "../utils/imageOptimizer";
+import { getFriends } from "./friendService";
 
 const POSTS_COLLECTION = "posts";
+
+/**
+ * Dedicated Demo Sample Posts for Demo Account isolation
+ */
+export const DEMO_MOCK_POSTS = [
+  {
+    id: "demo_post_welcome",
+    authorId: "demo_user_bot",
+    authorUsername: "tivorabot",
+    authorDisplayName: "Tivora Bot 🤖",
+    authorPhotoURL: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=200&q=80",
+    content: "Welcome to Tivora Demo Mode! 🤖✨\n\nYou are exploring Tivora with a Demo Guest Account. Real user posts and private profile feeds are completely isolated from demo accounts. Feel free to preview UI elements, light/dark themes, and social features here!\n\nTo publish your own real posts to real users, sign up for a free Tivora account! 🚀",
+    imageURL: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+    privacy: "public",
+    isDemo: true,
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000).toISOString(),
+    likeCount: 42,
+    commentCount: 8,
+    shareCount: 12
+  },
+  {
+    id: "demo_post_privacy_guide",
+    authorId: "demo_user_bot",
+    authorUsername: "tivorabot",
+    authorDisplayName: "Tivora Bot 🤖",
+    authorPhotoURL: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=200&q=80",
+    content: "🔒 Facebook-Style Audience Control Feature!\n\nWhen creating a post on Tivora, you can choose who sees your content:\n• 🌐 Public — Visible to all Tivora members in the main feed\n• 👥 Friends — Visible ONLY to accepted friends in your friend list!\n\nSign up today to test audience privacy controls with your friends!",
+    imageURL: "https://images.unsplash.com/photo-1522542550221-31fd19575a2d?auto=format&fit=crop&w=800&q=80",
+    privacy: "friends",
+    isDemo: true,
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    updatedAt: new Date(Date.now() - 7200000).toISOString(),
+    likeCount: 89,
+    commentCount: 15,
+    shareCount: 24
+  }
+];
+
+/**
+ * Helper to fetch friend UIDs set for privacy matching
+ */
+export async function getFriendUidsSet(uid) {
+  if (!uid) return new Set();
+  try {
+    const { friends } = await getFriends(uid, 100);
+    return new Set(friends.map(f => f.uid || f.id));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+/**
+ * Filter posts by privacy rules & demo user status
+ */
+export function filterPostsByPrivacy(posts, currentUid, isDemoUser = false, friendUidsSet = new Set()) {
+  if (isDemoUser) {
+    return DEMO_MOCK_POSTS;
+  }
+
+  return posts.filter(post => {
+    // Hide demo posts from real users
+    if (post.isDemo) return false;
+
+    const privacy = post.privacy || 'public';
+
+    // Public posts are visible to all real users
+    if (privacy === 'public') return true;
+
+    // Friends-only post: visible to author and accepted friends
+    if (privacy === 'friends') {
+      if (!currentUid) return false;
+      if (post.authorId === currentUid) return true;
+      if (friendUidsSet && (friendUidsSet.has(post.authorId) || friendUidsSet.has(post.authorUsername))) return true;
+      return false;
+    }
+
+    return true;
+  });
+}
 
 /**
  * Generate a new unique post ID before creation
@@ -32,8 +113,9 @@ export function generatePostId() {
  * @param {Object} author - { uid, username, displayName, photoURL }
  * @param {string} content 
  * @param {File|string|null} imageFileOrDataUrl 
+ * @param {string} privacy - "public" | "friends"
  */
-export async function createPost(author, content = "", imageFileOrDataUrl = null) {
+export async function createPost(author, content = "", imageFileOrDataUrl = null, privacy = "public") {
   if (!author || !author.uid) {
     throw new Error("Authenticated author UID is required to create a post.");
   }
@@ -50,13 +132,11 @@ export async function createPost(author, content = "", imageFileOrDataUrl = null
     if (typeof imageFileOrDataUrl === "string") {
       finalImageURL = imageFileOrDataUrl;
     } else if (imageFileOrDataUrl instanceof File) {
-      // 1. Try Firebase Storage upload
       try {
         const storageURL = await uploadPostImage(author.uid, postId, imageFileOrDataUrl);
         if (storageURL) {
           finalImageURL = storageURL;
         } else {
-          // Fallback to client-side compressed Data URL
           finalImageURL = await compressAndResizeImage(imageFileOrDataUrl, 1080, 1080, 150);
         }
       } catch (err) {
@@ -66,6 +146,8 @@ export async function createPost(author, content = "", imageFileOrDataUrl = null
     }
   }
 
+  const validPrivacy = (privacy === "friends") ? "friends" : "public";
+
   const postDocData = {
     id: postId,
     authorId: author.uid,
@@ -74,6 +156,8 @@ export async function createPost(author, content = "", imageFileOrDataUrl = null
     authorPhotoURL: author.photoURL || "",
     content: trimmedContent,
     imageURL: finalImageURL,
+    privacy: validPrivacy,
+    isDemo: Boolean(author.isDemo || author.uid === "demo_user"),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     likeCount: 0,
@@ -92,12 +176,20 @@ export async function createPost(author, content = "", imageFileOrDataUrl = null
 }
 
 /**
- * Fetch home feed posts with pagination (orderBy createdAt desc)
+ * Fetch home feed posts with pagination & privacy filtering
  * @param {number} limitCount 
  * @param {Object} [lastDocSnap] 
+ * @param {Object} [userContext] - { currentUid, isDemoUser, friendUidsSet }
  */
-export async function getHomeFeedPosts(limitCount = 10, lastDocSnap = null) {
+export async function getHomeFeedPosts(limitCount = 10, lastDocSnap = null, userContext = {}) {
+  const { currentUid = null, isDemoUser = false, friendUidsSet = null } = userContext;
+
+  if (isDemoUser) {
+    return { posts: DEMO_MOCK_POSTS, lastDocSnap: null };
+  }
+
   try {
+    const friendSet = friendUidsSet || (currentUid ? await getFriendUidsSet(currentUid) : new Set());
     const postsRef = collection(db, POSTS_COLLECTION);
     let q;
 
@@ -106,30 +198,31 @@ export async function getHomeFeedPosts(limitCount = 10, lastDocSnap = null) {
         postsRef,
         orderBy("createdAt", "desc"),
         startAfter(lastDocSnap),
-        limit(limitCount)
+        limit(limitCount * 2)
       );
     } else {
       q = query(
         postsRef,
         orderBy("createdAt", "desc"),
-        limit(limitCount)
+        limit(limitCount * 2)
       );
     }
 
     const querySnapshot = await getDocs(q);
-    const posts = [];
+    const rawPosts = [];
     let newLastDoc = null;
 
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      posts.push({
+      rawPosts.push({
         ...data,
         id: docSnap.id
       });
       newLastDoc = docSnap;
     });
 
-    return { posts, lastDocSnap: newLastDoc };
+    const filtered = filterPostsByPrivacy(rawPosts, currentUid, false, friendSet).slice(0, limitCount);
+    return { posts: filtered, lastDocSnap: newLastDoc };
   } catch (error) {
     console.warn("Error fetching home feed posts:", error);
     return { posts: [], lastDocSnap: null };
@@ -137,20 +230,19 @@ export async function getHomeFeedPosts(limitCount = 10, lastDocSnap = null) {
 }
 
 /**
- * Fetch user posts for profile Posts tab (where authorId == uid, orderBy createdAt desc)
- * @param {string} uid 
- * @param {number} limitCount 
- * @param {Object} [lastDocSnap] 
+ * Fetch user posts for profile Posts tab (where authorId == uid)
  */
-export async function getUserPosts(targetUidOrUsername, limitCount = 20, lastDocSnap = null) {
+export async function getUserPosts(targetUidOrUsername, limitCount = 20, lastDocSnap = null, userContext = {}) {
   if (!targetUidOrUsername) return { posts: [], lastDocSnap: null };
+  const { currentUid = null, isDemoUser = false, friendUidsSet = null } = userContext;
+
+  if (isDemoUser) {
+    return { posts: DEMO_MOCK_POSTS, lastDocSnap: null };
+  }
 
   try {
     const postsRef = collection(db, POSTS_COLLECTION);
-    
-    // Query 1: by authorId == targetUidOrUsername
     const q1 = query(postsRef, where("authorId", "==", targetUidOrUsername), limit(limitCount));
-    // Query 2: by authorUsername == targetUidOrUsername
     const q2 = query(postsRef, where("authorUsername", "==", targetUidOrUsername), limit(limitCount));
 
     const [snap1, snap2] = await Promise.all([
@@ -163,14 +255,16 @@ export async function getUserPosts(targetUidOrUsername, limitCount = 20, lastDoc
       postMap.set(docSnap.id, { ...docSnap.data(), id: docSnap.id });
     });
 
-    const posts = Array.from(postMap.values());
+    const rawPosts = Array.from(postMap.values());
 
-    // Sort client-side by createdAt descending
-    posts.sort((a, b) => {
+    rawPosts.sort((a, b) => {
       const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
       const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
       return tB - tA;
     });
+
+    const friendSet = friendUidsSet || (currentUid ? await getFriendUidsSet(currentUid) : new Set());
+    const posts = filterPostsByPrivacy(rawPosts, currentUid, false, friendSet);
 
     return { posts, lastDocSnap: null };
   } catch (error) {
@@ -181,27 +275,33 @@ export async function getUserPosts(targetUidOrUsername, limitCount = 20, lastDoc
 
 /**
  * Real-time subscription to a user's posts
- * @param {string} targetUidOrUsername 
- * @param {function} callback 
  */
-export function subscribeToUserPosts(targetUidOrUsername, callback) {
+export function subscribeToUserPosts(targetUidOrUsername, callback, userContext = {}) {
   if (!targetUidOrUsername) return () => {};
+  const { currentUid = null, isDemoUser = false, friendUidsSet = null } = userContext;
+
+  if (isDemoUser) {
+    callback(DEMO_MOCK_POSTS);
+    return () => {};
+  }
 
   const postsRef = collection(db, POSTS_COLLECTION);
   const q = query(postsRef, where("authorId", "==", targetUidOrUsername), limit(20));
 
-  return onSnapshot(q, (snapshot) => {
-    const posts = [];
+  return onSnapshot(q, async (snapshot) => {
+    const rawPosts = [];
     snapshot.forEach((docSnap) => {
-      posts.push({ ...docSnap.data(), id: docSnap.id });
+      rawPosts.push({ ...docSnap.data(), id: docSnap.id });
     });
 
-    posts.sort((a, b) => {
+    rawPosts.sort((a, b) => {
       const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
       const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
       return tB - tA;
     });
 
+    const friendSet = friendUidsSet || (currentUid ? await getFriendUidsSet(currentUid) : new Set());
+    const posts = filterPostsByPrivacy(rawPosts, currentUid, false, friendSet);
     callback(posts);
   }, (err) => {
     console.warn("User posts subscription notice:", err);
@@ -210,20 +310,32 @@ export function subscribeToUserPosts(targetUidOrUsername, callback) {
 
 /**
  * Fetch a single post by ID from top-level posts/{postId}
- * @param {string} postId 
  */
-export async function getPostById(postId) {
+export async function getPostById(postId, userContext = {}) {
   if (!postId) return null;
+  const { currentUid = null, isDemoUser = false } = userContext;
+
+  if (isDemoUser) {
+    return DEMO_MOCK_POSTS.find(p => p.id === postId) || DEMO_MOCK_POSTS[0];
+  }
 
   try {
     const postRef = doc(db, POSTS_COLLECTION, postId);
     const postSnap = await getDoc(postRef);
     if (!postSnap.exists()) return null;
 
-    return {
+    const post = {
       ...postSnap.data(),
       id: postSnap.id
     };
+
+    if (post.privacy === "friends") {
+      const friendSet = currentUid ? await getFriendUidsSet(currentUid) : new Set();
+      const isVisible = post.authorId === currentUid || friendSet.has(post.authorId);
+      if (!isVisible) return null;
+    }
+
+    return post;
   } catch (error) {
     console.warn("Error fetching post by ID:", error);
     return null;
@@ -231,14 +343,9 @@ export async function getPostById(postId) {
 }
 
 /**
- * Update an existing post (content or image) for post owner
- * @param {string} postId 
- * @param {string} authorId 
- * @param {string} newContent 
- * @param {File|string|null} newImageFileOrDataUrl 
- * @param {boolean} [removeExistingImage=false] 
+ * Update an existing post (content, image, or privacy)
  */
-export async function updatePost(postId, authorId, newContent, newImageFileOrDataUrl = null, removeExistingImage = false) {
+export async function updatePost(postId, authorId, newContent, newImageFileOrDataUrl = null, removeExistingImage = false, privacy = null) {
   if (!postId || !authorId) {
     throw new Error("Post ID and Author UID are required to update a post.");
   }
@@ -285,6 +392,10 @@ export async function updatePost(postId, authorId, newContent, newImageFileOrDat
     updatedAt: serverTimestamp()
   };
 
+  if (privacy === "public" || privacy === "friends") {
+    updatePayload.privacy = privacy;
+  }
+
   await updateDoc(postRef, updatePayload);
 
   const updatedSnap = await getDoc(postRef);
@@ -296,9 +407,6 @@ export async function updatePost(postId, authorId, newContent, newImageFileOrDat
 
 /**
  * Delete a post from top-level posts/{postId} and Storage
- * @param {string} postId 
- * @param {string} authorId 
- * @param {string} [imageURL] 
  */
 export async function deletePost(postId, authorId, imageURL = null) {
   if (!postId || !authorId) {
@@ -317,21 +425,17 @@ export async function deletePost(postId, authorId, imageURL = null) {
     throw new Error("Permission Denied: You can only delete your own posts.");
   }
 
-  // 1. Delete Storage image if present
   const targetImageURL = imageURL || data.imageURL;
   if (targetImageURL) {
     await deletePostImage(targetImageURL);
   }
 
-  // 2. Delete Firestore post document
   await deleteDoc(postRef);
   return true;
 }
 
 /**
- * Real-time subscription to a single post document for live like/comment counts & content
- * @param {string} postId 
- * @param {function} callback 
+ * Real-time subscription to a single post document
  */
 export function subscribeToPostDoc(postId, callback) {
   if (!postId) return () => {};
@@ -349,24 +453,34 @@ export function subscribeToPostDoc(postId, callback) {
 }
 
 /**
- * Real-time subscription to global home feed posts (live new posts instantly!)
- * @param {number} limitCount 
- * @param {function} callback 
+ * Real-time subscription to global home feed posts with privacy filtering
  */
-export function subscribeToHomeFeed(limitCount = 8, callback) {
+export function subscribeToHomeFeed(limitCount = 10, callback, userContext = {}) {
+  const { currentUid = null, isDemoUser = false } = userContext;
+
+  if (isDemoUser) {
+    callback({ posts: DEMO_MOCK_POSTS, lastDocSnap: null });
+    return () => {};
+  }
+
   const postsRef = collection(db, POSTS_COLLECTION);
-  const q = query(postsRef, orderBy("createdAt", "desc"), limit(limitCount));
-  return onSnapshot(q, (snapshot) => {
-    const posts = [];
+  const q = query(postsRef, orderBy("createdAt", "desc"), limit(limitCount * 2));
+  
+  return onSnapshot(q, async (snapshot) => {
+    const rawPosts = [];
     let lastDoc = null;
     snapshot.forEach((docSnap) => {
-      posts.push({ ...docSnap.data(), id: docSnap.id });
+      rawPosts.push({ ...docSnap.data(), id: docSnap.id });
       lastDoc = docSnap;
     });
-    callback({ posts, lastDocSnap: lastDoc });
+
+    const friendSet = currentUid ? await getFriendUidsSet(currentUid) : new Set();
+    const filtered = filterPostsByPrivacy(rawPosts, currentUid, false, friendSet).slice(0, limitCount);
+    callback({ posts: filtered, lastDocSnap: lastDoc });
   }, (err) => {
     console.warn("Home feed subscription notice:", err);
   });
 }
+
 
 

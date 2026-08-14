@@ -1,34 +1,10 @@
-import React, { useEffect } from 'react';
-import { Phone, Video, PhoneOff, Sparkles } from 'lucide-react';
+import React from 'react';
+import { Phone, Video, PhoneOff, Check, Sparkles } from 'lucide-react';
 import UserAvatar from '../common/UserAvatar';
 import { useCall } from '../../context/CallContext';
 
 export default function IncomingCallModal() {
   const { incomingCall, acceptCall, declineCall } = useCall();
-  const callId = incomingCall?.callId;
-
-  // Haptic ring on mobile — the visual-only modal was easy to miss when the
-  // screen was in a pocket. Silently unsupported on desktop Safari/Firefox.
-  useEffect(() => {
-    if (!callId || typeof navigator === 'undefined' || !navigator.vibrate) return;
-    const pattern = [400, 200, 400, 1000];
-    navigator.vibrate(pattern);
-    const interval = setInterval(() => navigator.vibrate(pattern), 2000);
-    return () => {
-      clearInterval(interval);
-      navigator.vibrate(0);
-    };
-  }, [callId]);
-
-  // Escape declines, matching every other dismissible surface in the app.
-  useEffect(() => {
-    if (!callId) return;
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') declineCall();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [callId, declineCall]);
 
   if (!incomingCall) return null;
 
@@ -38,37 +14,24 @@ export default function IncomingCallModal() {
   const callerAvatar = incomingCall.callerPhotoURL;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-bg/80 backdrop-blur-xl animate-fadeIn"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Incoming ${isVideo ? 'video' : 'voice'} call from ${callerName}`}
-    >
-      <div className="bg-brand-surface rounded-3xl border border-brand-border/80 shadow-glass w-full max-w-sm overflow-hidden p-8 text-center relative space-y-6 animate-scaleUp">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-mainText/60 backdrop-blur-md animate-fadeIn">
+      <div className="bg-brand-surface rounded-3xl border border-brand-border/80 shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center relative space-y-6 animate-scaleUp">
         {/* Top Floating Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-lavender text-brand-purple text-xs font-bold shadow-soft-xs">
-          <Sparkles className="w-3.5 h-3.5" />
+          <Sparkles className="w-3.5 h-3.5 animate-spin" />
           <span>Incoming {isVideo ? 'Video' : 'Voice'} Call</span>
         </div>
 
-        {/* Caller avatar with a staggered double halo that reads as a ring cadence.
-            The outer flex row is required: an inline-level wrapper sits on the same
-            line as the status badge above it, since space-y cannot break inlines. */}
-        <div className="flex justify-center my-2">
-          <div className="relative inline-flex items-center justify-center">
-            <span aria-hidden="true" className="absolute inset-0 rounded-full bg-brand-purple/30 animate-callPulse" />
-            <span
-              aria-hidden="true"
-              className="absolute inset-0 rounded-full bg-brand-purple/20 animate-callPulse"
-              style={{ animationDelay: '0.9s' }}
-            />
-            <UserAvatar
-              src={callerAvatar}
-              name={callerName}
-              size="w-24 h-24"
-              className="relative border-4 border-brand-surface shadow-soft-lg"
-            />
-          </div>
+        {/* Pulsating Caller Avatar */}
+        <div className="relative inline-block my-2">
+          <div className="absolute inset-0 rounded-full bg-brand-purple/20 animate-ping" />
+          <div className="absolute -inset-3 rounded-full bg-primary-gradient/10 animate-pulse" />
+          <UserAvatar
+            src={callerAvatar}
+            name={callerName}
+            size="w-24 h-24"
+            className="relative border-4 border-brand-surface shadow-soft-lg"
+          />
         </div>
 
         {/* Caller Info */}
@@ -86,7 +49,7 @@ export default function IncomingCallModal() {
           <div className="flex flex-col items-center gap-1.5">
             <button
               onClick={declineCall}
-              className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-soft-lg hover:scale-110 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-surface"
+              className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-soft-lg hover:scale-110 active:scale-95 transition-all"
               aria-label="Decline Call"
             >
               <PhoneOff className="w-6 h-6" />
@@ -94,17 +57,16 @@ export default function IncomingCallModal() {
             <span className="text-xs font-semibold text-brand-mutedText">Decline</span>
           </div>
 
-          {/* Accept Button — autofocused so Enter answers straight away */}
+          {/* Accept Button */}
           <div className="flex flex-col items-center gap-1.5">
             <button
               onClick={acceptCall}
-              autoFocus
-              className="w-14 h-14 rounded-full bg-brand-success hover:brightness-110 text-white flex items-center justify-center shadow-soft-lg hover:scale-110 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-success focus-visible:ring-offset-2 focus-visible:ring-offset-brand-surface"
+              className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-soft-lg hover:scale-110 active:scale-95 transition-all animate-bounce"
               aria-label="Accept Call"
             >
               {isVideo ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
             </button>
-            <span className="text-xs font-semibold text-brand-success">Accept</span>
+            <span className="text-xs font-semibold text-emerald-600">Accept</span>
           </div>
         </div>
       </div>

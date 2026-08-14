@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Bookmark, Compass, Home, MessageSquare, Plus, Users } from 'lucide-react';
+import { Bell, Bookmark, Compass, Home, MessageSquare, Plus, Users, UserPlus } from 'lucide-react';
 import { useRealtime } from '../../hooks/useRealtime';
 import GlassSurface from '../ui/GlassSurface';
 
@@ -12,11 +12,12 @@ import GlassSurface from '../ui/GlassSurface';
  * and the filter only ever runs on a ~440x64 region.
  */
 export default function GlassDock({ activeScreen, setActiveScreen, onOpenCreateModal }) {
-  const { unreadNotifCount, unreadMsgCount } = useRealtime();
+  const { unreadNotifCount, unreadMsgCount, pendingFriendRequestsCount } = useRealtime();
 
   const items = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'explore', label: 'Explore', icon: Compass },
+    { id: 'friends', label: 'Friends', icon: UserPlus, badge: pendingFriendRequestsCount },
     { id: 'groups', label: 'Groups', icon: Users },
     { id: 'fab_create', label: 'Create', isFab: true },
     { id: 'messages', label: 'Messages', icon: MessageSquare, badge: unreadMsgCount },

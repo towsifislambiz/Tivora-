@@ -16,12 +16,14 @@ export default function Explore({ onSelectProfileUsername, onSelectPostId, setAc
   const [suggestedPeople, setSuggestedPeople] = useState(cachedExplore?.people || []);
   const [popularGroups, setPopularGroups] = useState(cachedExplore?.groups || []);
   const [trendingPosts, setTrendingPosts] = useState(cachedExplore?.posts || []);
-  const [loading, setLoading] = useState(!cachedExplore);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let timer = null;
+
     async function loadExploreData() {
-      if (!FastCache.get('explore_data')) {
-        setLoading(true);
+      if (!cachedExplore) {
+        timer = setTimeout(() => setLoading(true), 250);
       }
 
       const [people, groups, { posts }] = await Promise.all([
@@ -30,6 +32,7 @@ export default function Explore({ onSelectProfileUsername, onSelectPostId, setAc
         getHomeFeedPosts(6)
       ]);
 
+      if (timer) clearTimeout(timer);
       const filteredPeople = people.filter(u => u.uid !== currentUser?.uid);
 
       setSuggestedPeople(filteredPeople);

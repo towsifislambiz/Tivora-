@@ -13,7 +13,9 @@ import {
   Send,
   Loader2,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Globe,
+  Users
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { 
@@ -343,8 +345,19 @@ export default function PostCard({ post, onSelectProfileUsername, onShowToast, o
             <h4 className="font-bold text-sm text-brand-mainText leading-tight group-hover:text-brand-purple transition-colors">
               {authorName}
             </h4>
-            <div className="text-xs text-brand-mutedText mt-0.5">
-              @{authorUsername} · {timeFormatted}
+            <div className="text-xs text-brand-mutedText mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <span>@{authorUsername} · {timeFormatted}</span>
+              <span>·</span>
+              {post.privacy === 'friends' ? (
+                <span className="inline-flex items-center gap-1 bg-brand-purple/10 text-brand-purple text-[0.65rem] px-1.5 py-0.5 rounded font-semibold" title="Visible to Friends Only">
+                  <Users className="w-3 h-3" />
+                  <span>Friends</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-brand-mutedText text-[0.65rem]" title="Public Post">
+                  <Globe className="w-3 h-3" />
+                </span>
+              )}
             </div>
           </div>
         </div>

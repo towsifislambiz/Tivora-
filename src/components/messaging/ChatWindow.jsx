@@ -138,23 +138,8 @@ export default function ChatWindow({ conversation, onBack, onSelectProfileUserna
     return () => {
       unsubscribeMsgs();
       unsubscribeConvDoc();
-      // Clear the typing flag on close — otherwise leaving mid-sentence leaves the
-      // partner staring at a permanent "is typing..." indicator.
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      setTypingStatus(canonicalConvId, currentUser.uid, false);
     };
   }, [currentUser?.uid, partnerUid]);
-
-  // 3b. Release the recorder microphone if the chat unmounts mid-recording
-  useEffect(() => {
-    return () => {
-      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-      if (recordingStreamRef.current) {
-        recordingStreamRef.current.getTracks().forEach((track) => track.stop());
-        recordingStreamRef.current = null;
-      }
-    };
-  }, []);
 
   // 4. Messenger Scroll Helper & Handle Scroll Events
   const scrollToBottom = useCallback((smooth = true) => {

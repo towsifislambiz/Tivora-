@@ -24,8 +24,10 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const isDemoUser = Boolean(
-    (currentUser?.email && currentUser.email.toLowerCase() === DEMO_EMAIL.toLowerCase()) ||
-    userDoc?.isDemo === true
+    (currentUser?.email && currentUser.email.toLowerCase().includes('demo')) ||
+    userDoc?.isDemo === true ||
+    userDoc?.username === 'tivorabot' ||
+    userDoc?.username === 'ethancarter'
   );
 
   useEffect(() => {

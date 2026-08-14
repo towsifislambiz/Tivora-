@@ -74,31 +74,10 @@ export default {
         shimmer: {
           '100%': { transform: 'translateX(100%)' },
         },
-        // `animate-fadeIn` / `animate-scaleUp` were referenced by 15 components
-        // but never defined anywhere — so every modal in the app popped in with
-        // no transition at all. Defining them here activates all of them at once.
-        fadeIn: {
-          from: { opacity: '0' },
-          to: { opacity: '1' },
-        },
-        scaleUp: {
-          from: { opacity: '0', transform: 'scale(0.94) translateY(8px)' },
-          to: { opacity: '1', transform: 'scale(1) translateY(0)' },
-        },
-        // Slow, continuous ring for an unanswered call — `animate-ping` restarts
-        // too abruptly to read as a phone ringing.
-        callPulse: {
-          '0%': { transform: 'scale(1)', opacity: '0.55' },
-          '70%': { transform: 'scale(1.55)', opacity: '0' },
-          '100%': { transform: 'scale(1.55)', opacity: '0' },
-        },
       },
       animation: {
         'aurora-slow': 'auroraDrift 26s ease-in-out infinite',
         'aurora-slower': 'auroraDrift 38s ease-in-out infinite reverse',
-        fadeIn: 'fadeIn 0.2s ease-out both',
-        scaleUp: 'scaleUp 0.26s cubic-bezier(0.16, 1, 0.3, 1) both',
-        callPulse: 'callPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
     },
   },

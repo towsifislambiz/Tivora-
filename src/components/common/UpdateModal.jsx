@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, RefreshCw, X } from 'lucide-react';
+import { APP_VERSION } from '../../config/appVersion';
+import { isStandaloneApp } from '../../utils/pwaHelper';
 
 export default function UpdateModal() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -18,7 +20,12 @@ export default function UpdateModal() {
         const newETag = res.headers.get('etag') || res.headers.get('last-modified');
 
         if (currentETag && newETag && currentETag !== newETag) {
-          setUpdateAvailable(true);
+          if (isStandaloneApp()) {
+            // Auto silent background update for installed app users!
+            window.location.reload();
+          } else {
+            setUpdateAvailable(true);
+          }
         } else if (newETag) {
           currentETag = newETag;
         }
@@ -34,7 +41,11 @@ export default function UpdateModal() {
     // Also check on Service Worker update if present
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        setUpdateAvailable(true);
+        if (isStandaloneApp()) {
+          window.location.reload();
+        } else {
+          setUpdateAvailable(true);
+        }
       });
     }
 
@@ -59,12 +70,12 @@ export default function UpdateModal() {
               <Sparkles className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-brand-mainText leading-tight">
-                New Version Available! 🚀
+              <div className="text-[0.68rem] font-bold text-brand-purple">
+                Update Available (v{APP_VERSION})
+              </div>
+              <h4 className="font-bold text-sm text-brand-mainText leading-tight mt-0.5">
+                New Tivora Build Live! 🚀
               </h4>
-              <p className="text-xs text-brand-mutedText mt-0.5">
-                A fresh Tivora update is live with improvements.
-              </p>
             </div>
           </div>
 

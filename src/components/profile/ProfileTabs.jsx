@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { User, MapPin, Mail, Info, Heart, MessageSquare, Loader2 } from 'lucide-react';
 import { getUserPosts, subscribeToUserPosts } from '../../firebase/postService';
 import PostCard from '../feed/PostCard';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function ProfileTabs({ profile, isOwner, onSelectProfileUsername, onShowToast }) {
+  const { currentUser, isDemoUser } = useAuth();
   const [activeTab, setActiveTab] = useState('about');
   const [userPosts, setUserPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -20,12 +22,17 @@ export default function ProfileTabs({ profile, isOwner, onSelectProfileUsername,
 
   useEffect(() => {
     let unsubscribe = null;
+    let timer = null;
+    const userContext = { currentUid: currentUser?.uid, isDemoUser };
 
     async function fetchUserPosts() {
       const targetId = profile?.uid || profile?.username || profile?.profileId;
       if (activeTab === 'posts' && targetId) {
-        setLoadingPosts(true);
-        const { posts } = await getUserPosts(targetId, 20);
+        if (!userPosts || userPosts.length === 0) {
+          timer = setTimeout(() => setLoadingPosts(true), 250);
+        }
+        const { posts } = await getUserPosts(targetId, 20, null, userContext);
+        if (timer) clearTimeout(timer);
         setUserPosts(posts);
         setLoadingPosts(false);
 
@@ -33,16 +40,17 @@ export default function ProfileTabs({ profile, isOwner, onSelectProfileUsername,
           if (livePosts) {
             setUserPosts(livePosts);
           }
-        });
+        }, userContext);
       }
     }
 
     fetchUserPosts();
 
     return () => {
+      if (timer) clearTimeout(timer);
       if (unsubscribe) unsubscribe();
     };
-  }, [activeTab, profile?.uid, profile?.username, profile?.profileId]);
+  }, [activeTab, profile?.uid, profile?.username, profile?.profileId, currentUser?.uid, isDemoUser]);
 
   const handlePostUpdated = (updatedPost) => {
     setUserPosts((prev) => prev.map(p => p.id === updatedPost.id ? updatedPost : p));

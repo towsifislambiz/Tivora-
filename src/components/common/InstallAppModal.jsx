@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Download, X, Share, PlusSquare, Check, Sparkles, AlertCircle, Package } from 'lucide-react';
+import { Smartphone, Download, X, Share, PlusSquare, Check, Sparkles, AlertCircle } from 'lucide-react';
+import { APP_VERSION, APK_DOWNLOAD_URL } from '../../config/appVersion';
+import { isStandaloneApp } from '../../utils/pwaHelper';
 
 export default function InstallAppModal({ isOpen, onClose, onShowToast }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if already running as installed app
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    if (isStandaloneApp()) {
       setIsStandalone(true);
     }
 
@@ -31,7 +32,7 @@ export default function InstallAppModal({ isOpen, onClose, onShowToast }) {
     };
   }, []);
 
-  if (!isOpen) return null;
+  if (!isOpen || isStandalone) return null;
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -39,6 +40,7 @@ export default function InstallAppModal({ isOpen, onClose, onShowToast }) {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setInstalled(true);
+        try { localStorage.setItem('tivora_is_installed', 'true'); } catch (e) {}
         if (onShowToast) onShowToast('Tivora App installed to your Home Screen! 🚀');
       }
       setDeferredPrompt(null);
@@ -47,6 +49,10 @@ export default function InstallAppModal({ isOpen, onClose, onShowToast }) {
         onShowToast('Tap Chrome menu (⋮) -> Select "Install App" or "Add to Home screen" 📱');
       }
     }
+  };
+
+  const handleApkDownloadClick = () => {
+    if (onShowToast) onShowToast(`Downloading Tivora v${APP_VERSION}.apk file... Check your phone Downloads! 📥`);
   };
 
   return (
@@ -67,14 +73,20 @@ export default function InstallAppModal({ isOpen, onClose, onShowToast }) {
           <div className="w-16 h-16 rounded-3xl bg-primary-gradient text-white flex items-center justify-center mx-auto shadow-gradient-glow animate-bounce">
             <Smartphone className="w-8 h-8" />
           </div>
-          <h3 className="text-xl font-bold text-brand-mainText">Get Tivora Mobile App</h3>
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-brand-purple/15 text-brand-purple text-xs font-extrabold mb-1">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Official Version {APP_VERSION}</span>
+            </div>
+            <h3 className="text-xl font-bold text-brand-mainText">Get Tivora Mobile App</h3>
+          </div>
           <p className="text-xs sm:text-sm text-brand-mutedText max-w-xs mx-auto leading-relaxed">
             Get the official Tivora App on your phone home screen just like Facebook & WhatsApp.
           </p>
         </div>
 
         {/* Status / Instructions */}
-        {isStandalone || installed ? (
+        {installed ? (
           <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4 rounded-2xl text-center space-y-2">
             <Check className="w-8 h-8 text-emerald-500 mx-auto" />
             <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Tivora App is installed!</p>
@@ -89,50 +101,49 @@ export default function InstallAppModal({ isOpen, onClose, onShowToast }) {
             </div>
             <div className="flex items-start gap-2.5">
               <span className="w-5 h-5 rounded-full bg-brand-purple text-white font-bold flex items-center justify-center shrink-0 text-[0.7rem]">1</span>
-              <p>Tap Safari <span className="font-bold underline flex-inline items-center gap-1">Share button <Share className="w-3 h-3 inline" /></span>.</p>
+              <p>Tap Safari <span className="font-bold underline inline-flex items-center gap-1">Share button <Share className="w-3 h-3 inline" /></span>.</p>
             </div>
             <div className="flex items-start gap-2.5">
               <span className="w-5 h-5 rounded-full bg-brand-purple text-white font-bold flex items-center justify-center shrink-0 text-[0.7rem]">2</span>
-              <p>Tap <span className="font-bold underline flex-inline items-center gap-1">"Add to Home Screen" <PlusSquare className="w-3 h-3 inline" /></span>.</p>
+              <p>Tap <span className="font-bold underline inline-flex items-center gap-1">"Add to Home Screen" <PlusSquare className="w-3 h-3 inline" /></span>.</p>
             </div>
           </div>
         ) : (
-          /* Android / Chrome Dual Options */
+          /* Android / Chrome Options */
           <div className="space-y-3">
-            
-            {/* Primary Action: Chrome Instant App Install */}
+            {/* Action 1: Chrome Instant App Install (WebAPK) */}
             <button
               onClick={handleInstallClick}
               className="w-full py-3.5 px-6 rounded-2xl bg-primary-gradient text-white font-bold text-sm shadow-gradient-glow hover:scale-[1.02] active:scale-98 transition-transform flex items-center justify-center gap-2"
             >
               <Smartphone className="w-5 h-5" />
-              <span>{deferredPrompt ? 'Install Tivora App to Home Screen' : 'Install Tivora App (1-Click)'}</span>
+              <span>{deferredPrompt ? `Install Tivora App v${APP_VERSION} (1-Click)` : `Install Tivora App v${APP_VERSION} (1-Click)`}</span>
             </button>
 
-            {/* Direct APK File Download Link */}
+            {/* Action 2: Direct APK Download Link */}
             <a
-              href="/tivora.apk"
-              download="Tivora.apk"
-              onClick={() => onShowToast && onShowToast('Downloading Tivora.apk file... Check your phone Downloads! 📥')}
+              href={APK_DOWNLOAD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleApkDownloadClick}
               className="w-full py-3 px-6 rounded-2xl bg-brand-lavender text-brand-purple hover:bg-brand-purple/10 font-bold text-xs border border-brand-purple/30 transition-all flex items-center justify-center gap-2 text-center"
             >
               <Download className="w-4 h-4 text-brand-purple" />
-              <span>Download Tivora.apk File Direct</span>
+              <span>Download Tivora.apk Direct File (v{APP_VERSION})</span>
             </a>
 
             {/* Android Direct Guide Box */}
             <div className="bg-brand-lavender/70 p-3.5 rounded-2xl text-left space-y-2 text-xs text-brand-mainText border border-brand-border/60">
               <div className="font-bold text-brand-purple flex items-center gap-1.5">
                 <AlertCircle className="w-4 h-4" />
-                <span>Android Chrome-এ যেভাবে হোম স্ক্রিনে যোগ করবেন:</span>
+                <span>Android Chrome-এ যেভাবে ইনস্টল করবেন:</span>
               </div>
               <ol className="list-decimal list-inside space-y-1 text-brand-mutedText pl-1">
-                <li>ক্রোম ব্রাউজারের ওপরে <span className="font-bold text-brand-mainText">তিনটি ডট (⋮)</span> চাপুন।</li>
-                <li><span className="font-bold text-brand-mainText">"Install app"</span> অথবা <span className="font-bold text-brand-mainText">"Add to Home screen"</span> নির্বাচন করুন।</li>
-                <li>ফোনের হোম স্ক্রিনে <span className="font-bold text-brand-purple">Tivora Logo & Name</span> সহ অফিশিয়াল অ্যাপ হিসেবে যোগ হয়ে যাবে!</li>
+                <li><span className="font-bold text-brand-mainText">1-Click Install</span> বাটন চাপুন অথবা ক্রোম মেম্বারের <span className="font-bold text-brand-mainText">তিনটি ডট (⋮)</span> চাপুন।</li>
+                <li><span className="font-bold text-brand-mainText">"Install app"</span> বা <span className="font-bold text-brand-mainText">"Add to Home screen"</span> চাপুন।</li>
+                <li>আপনার ফোনের হোম স্ক্রিনে <span className="font-bold text-brand-purple">Tivora Official App</span> যোগ হয়ে যাবে!</li>
               </ol>
             </div>
-
           </div>
         )}
 

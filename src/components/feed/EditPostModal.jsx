@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Image, Trash2, AlertCircle, Loader2, Zap } from 'lucide-react';
+import { X, Image, Trash2, AlertCircle, Loader2, Globe, Users } from 'lucide-react';
 import { compressAndResizeImage } from '../../utils/imageOptimizer';
 import { updatePost } from '../../firebase/postService';
 
@@ -9,6 +9,7 @@ export default function EditPostModal({ isOpen, post, onClose, onPostUpdated, on
   const [newImageFile, setNewImageFile] = useState(null);
   const [newImagePreview, setNewImagePreview] = useState(null);
   const [removeImage, setRemoveImage] = useState(false);
+  const [privacy, setPrivacy] = useState(post?.privacy || 'public');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +57,8 @@ export default function EditPostModal({ isOpen, post, onClose, onPostUpdated, on
         post.authorId,
         trimmedContent,
         newImagePreview || newImageFile,
-        removeImage
+        removeImage,
+        privacy
       );
 
       if (onShowToast) onShowToast('Post updated successfully! ✨');
@@ -93,6 +95,37 @@ export default function EditPostModal({ isOpen, post, onClose, onPostUpdated, on
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Audience Privacy Selector */}
+          <div className="flex items-center justify-between bg-brand-lavender/40 p-3 rounded-2xl border border-brand-border">
+            <div className="text-xs font-bold text-brand-mainText">Post Audience:</div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPrivacy('public')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  privacy === 'public'
+                    ? 'bg-brand-purple text-white shadow-soft-xs'
+                    : 'text-brand-mutedText hover:text-brand-mainText hover:bg-brand-lavender'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Public</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrivacy('friends')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  privacy === 'friends'
+                    ? 'bg-brand-purple text-white shadow-soft-xs'
+                    : 'text-brand-mutedText hover:text-brand-mainText hover:bg-brand-lavender'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Friends</span>
+              </button>
+            </div>
+          </div>
+
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}

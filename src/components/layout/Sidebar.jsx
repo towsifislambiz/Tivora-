@@ -14,10 +14,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRealtime } from '../../hooks/useRealtime';
+import { isStandaloneApp, isMobileOrTablet } from '../../utils/pwaHelper';
 
 export default function Sidebar({ activeScreen, setActiveScreen, onShowToast, onOpenInstallModal }) {
   const { userDoc } = useAuth();
-  const { unreadNotifCount, unreadMsgCount } = useRealtime();
+  const { unreadNotifCount, unreadMsgCount, pendingFriendRequestsCount } = useRealtime();
 
   const isAdmin = userDoc?.role === 'admin' || userDoc?.role === 'owner' || userDoc?.email === 'demo@tivora.app';
 
@@ -25,7 +26,7 @@ export default function Sidebar({ activeScreen, setActiveScreen, onShowToast, on
     { id: 'home', label: 'Home', icon: Home },
     { id: 'explore', label: 'Explore', icon: Compass },
     { id: 'groups', label: 'Groups', icon: Users },
-    { id: 'friends', label: 'Friends', icon: UserPlus },
+    { id: 'friends', label: 'Friends', icon: UserPlus, badge: pendingFriendRequestsCount },
     { id: 'messages', label: 'Messages', icon: MessageSquare, badge: unreadMsgCount },
     { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotifCount },
     { id: 'saved', label: 'Saved Posts', icon: BookmarkCheck },
@@ -112,16 +113,18 @@ export default function Sidebar({ activeScreen, setActiveScreen, onShowToast, on
         </button>
       </div>
 
-      {/* Get Mobile App Button */}
-      <div className="mt-4 pt-4 border-t border-brand-border">
-        <button
-          onClick={onOpenInstallModal}
-          className="w-full py-2.5 px-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-soft-sm transition-all hover:scale-[1.02]"
-        >
-          <Smartphone className="w-4 h-4" />
-          <span>Get Tivora App 📱</span>
-        </button>
-      </div>
+      {/* Get Mobile App Button (Only on Mobile/Tablet and non-standalone app) */}
+      {isMobileOrTablet() && !isStandaloneApp() && (
+        <div className="mt-4 pt-4 border-t border-brand-border">
+          <button
+            onClick={onOpenInstallModal}
+            className="w-full py-2.5 px-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-soft-sm transition-all hover:scale-[1.02]"
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Get Tivora App 📱</span>
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
